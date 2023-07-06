@@ -28,7 +28,7 @@ PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files
 _SITES_ = ['Pecan5R', 'RedLake', 'Kimberly', 'Bahada']  # Sites that are processed
 PATH_TEMP_SHARED_FOLDER = {}   # Where the files are shared with the other users
 for site in _SITES_:
-    PATH_TEMP_SHARED_FOLDER[site] = PATH_CLOUD_BASE.joinpath(site, 'Tower')
+    PATH_TEMP_SHARED_FOLDER[site] = PATH_CLOUD_BASE.joinpath(site, 'Shared')
 
 # Campbell Scientific files, Meta data info
 # header metadata first line info position

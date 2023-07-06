@@ -115,7 +115,7 @@ def getInfoFile(pathFileName):
         info['tableStorage'] = consts.PATH_STORAGE.joinpath(info['site']).joinpath('Tower').joinpath(storageTableName)
         psf = consts.PATH_TEMP_SHARED_FOLDER.get(info['site'], None)
         if psf is not None:
-            info['pathShared'] = psf.joinpath(storageTableName, str(info['fileNameDT'].year), 'Raw_Data', 'shared', pathFileName.name)
+            info['pathShared'] = psf.joinpath(pathFileName.name)
     except Exception as e:
         print(f'Error in getInfoFileName: {e}')
 
