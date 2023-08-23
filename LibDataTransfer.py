@@ -62,86 +62,185 @@
 #   'checkAndFixPath(path_)': Checks and fixes the format of a path by appending a backslash if it is missing.
 #   'joinPath(path1, path2)': Joins two paths together.
 
-import os, time, datetime, shutil, hashlib, glob
+import glob
+import hashlib
+import os
+import re
+import shutil
+import time
 import zipfile
 from pathlib import Path
-import re
+
+import ConverterCambellsciData
 import Log
 import consts
 import systemTools
 
 
 ###########################################
-### info of files
+# info of files
 
-def getInfoFile(pathFileName):
-    """ Return a dictionary with the info of the file
-    basic:
-        folder, site, datalogger, table, fileNameDT, extension
-    advance:
-        creationDT, numberlines, type, stationName, model, serialNumber, os, program, signature, tableName """
-    info = consts.CS_DATA_DICT.copy()
-    info['path'] = pathFileName
-    # check if the file is a Path object and if not convert it
-    if not isinstance(pathFileName, Path):
-        pathFileName = Path(pathFileName)
-    try:
-        # get the name of the file
-        fileName = pathFileName.stem
-        # get the extension of the file
-        info['extension'] = pathFileName.suffix
-        # split the name of the file
-        fileNameSplit = fileName.split('_')
-        # get the date and time of the file
-        info['site'] = fileNameSplit[consts.CS_FILE_NAME_SITE]
-        info['datalogger'] = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
-        # check if the fileNameSplit has more than 3 elements and if yes, get the date and time
-        if len(fileNameSplit) > 3:
-            info['fileNameDT'] = systemTools.getDT4Str(fileName[-15:])
-        # get the creation date and time of the file
-        info['creationDT'] = datetime.datetime.fromtimestamp(pathFileName.stat().st_ctime)
-        # get the number of lines of the file
-        if 'TOA' in info['type']:
-            info['numberlines'] = systemTools.rawincount(pathFileName)
-        _headers_ = getHeadersFile(pathFileName)
-        if len(_headers_) == 0:
-            print(f'Error: {pathFileName} has no headers or it is empty')
-            return info
-        info['headers'] = _headers_
-        nl = re.split(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)', _headers_[0])
-        for item in consts.CS_FILE_METADATA:
-            info[item] = nl[consts.CS_FILE_METADATA[item]].replace('"', '')
-        storageTableName = consts.TABLES_SPECIFIC_NAMES.get(info['tableName'], info['tableName'])
-        info['tableStorage'] = consts.PATH_STORAGE.joinpath(info['site']).joinpath('Tower').joinpath(storageTableName)
-        psf = consts.PATH_TEMP_SHARED_FOLDER.get(info['site'], None)
-        if psf is not None:
-            info['pathShared'] = psf.joinpath(pathFileName.name)
-    except Exception as e:
-        print(f'Error in getInfoFileName: {e}')
+# def getInfoFile(pathFileName):
+#     """ Return a dictionary with the info of the file
+#     basic:
+#         folder, site, datalogger, table, fileNameDT, extension
+#     advance:
+#         creationDT, numberlines, type, stationName, model, serialNumber, os, program, signature, tableName """
+#     info = consts.CS_DATA_DICT.copy()
+#     info['path'] = pathFileName
+#     # check if the file is a Path object and if not convert it
+#     if not isinstance(pathFileName, Path):
+#         pathFileName = Path(pathFileName)
+#     try:
+#         # get the name of the file
+#         fileName = pathFileName.stem
+#         # get the extension of the file
+#         info['extension'] = pathFileName.suffix
+#         # split the name of the file
+#         fileNameSplit = fileName.split('_')
+#         # get the date and time of the file
+#         info['site'] = fileNameSplit[consts.CS_FILE_NAME_SITE]
+#         info['datalogger'] = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
+#         info['pathLog'] = consts.PATH_CLOUD.joinpath(info['site'], 'logs', fileName[:-15])
+#         # check if the fileNameSplit has more than 3 elements and if yes, get the date and time
+#         if len(fileNameSplit) > 3:
+#             info['fileNameDT'] = systemTools.getDT4Str(fileName[-15:])
+#         # get the creation date and time of the file
+#         if pathFileName.exists():
+#             info['creationDT'] = datetime.datetime.fromtimestamp(pathFileName.stat().st_ctime)
+#             if pathFileName.stat().st_size > 1:
+#                 info['statusFile'] = consts.STATUS_FILE_OK
+#             else:
+#                 info['statusFile'] = consts.STATUS_FILE_EMPTY
+#         if info['statusFile'] == consts.STATUS_FILE_OK:
+#             _meta_ = getMetaDataFile(pathFileName)
+#             for item in _meta_:
+#                 info[item] = _meta_[item]
+#             if len(_meta_['headers']) == 0:
+#                 print(f'Error: {pathFileName} has no headers or it is empty')
+#                 return info
+#             info['headers'] = _meta_['headers']
+#             nl = getStrippedHeaderLine(_meta_['headers'][0])
+#             for item in consts.CS_FILE_METADATA:
+#                 info[item] = nl[consts.CS_FILE_METADATA[item]].replace('"', '')
+#                 # get the number of lines of the file
+#             info['pathLog'] = info['pathLog'].parent.joinpath(info['tableName'])
+#             if 'TOA' in info['type']:
+#                 info['numberlines'] = systemTools.rawincount(pathFileName)
+#             storageTableName = consts.TABLES_SPECIFIC_NAMES.get(info['tableName'], info['tableName'])
+#             info['tableStorage'] = consts.PATH_STORAGE.joinpath(info['site']).joinpath('Tower').joinpath(storageTableName)
+#             psf = consts.PATH_CLOUD.joinpath(info['site'], 'Shared')
+#             info['pathShared'] = psf.joinpath(pathFileName.stem[:-16]+pathFileName.suffix)
+#             info['pathBackup'] = consts.PATH_BACKUP.joinpath(info['site'])
+#     except Exception as e:
+#         print(f'Error in getInfoFileName: {e}')
+#     # return the dictionary
+#     info['log'] = Log.Log(info['pathLog'])
+#     return info
 
-    # return the dictionary
-    return info
+
+def getStrippedHeaderLine(line):
+    return re.split(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)', line)
 
 
-def getTableStoragePath(info):
-    """ Return the path of the storage of the site """
-    storageTableName = consts.TABLES_SPECIFIC_NAMES.get(info['tableName'], info['tableName'])
-    return consts.PATH_STORAGE.joinpath(info['site']).joinpath('Tower').joinpath(storageTableName)
+# def getTableStoragePath(info):
+#     """ Return the path of the storage of the site """
+#     storageTableName = consts.TABLES_SPECIFIC_NAMES.get(info['tableName'], info['tableName'])
+#     return consts.PATH_STORAGE.joinpath(info['site']).joinpath('Tower').joinpath(storageTableName)
 
 
-#def getRAWstoragePath(site):
+# def getRAWstoragePath(site):
 
-def getHeadersFile(pathFileName):  # OK
-    """ return the first 7 lines from pathFileName """
-    lines = []
+
+def getHeaderFLlineFile(pathFileName, log=None):  # TODO: check if this function is working as expected
+    """ return a dict with the 'headers' that are the first lines
+     'firstLineDT', the first line timestamp od data and the 'lastLine' timestamp of data """
+    meta = {'headers': [], 'firstLineDT': None, 'lastLineDT': None}
+    _log = False
+    if log is not None and isinstance(log, Log.Log):
+        _log = True
     try:
         with open(pathFileName, 'rb') as f:
-            for i in range(len(consts.CS_FILE_HEADER_LINE)):
-                lines.append((f.readline().decode('ascii')).strip())
-        return lines
+            for i in range(len(consts.CS_FILE_HEADER_LINE) - 1):
+                meta['headers'].append((f.readline().decode('ascii')).strip())
+            # check if the first 10 chars in the first line on the headers existe the substring TOA
+            if 'TOA' in meta['headers'][0][:10]:
+                meta['firstLineDT'] = getDTfromLine(f.readline().decode('ascii'))
+                f.seek(-2, os.SEEK_END)
+                while f.read(1) != b'\n':
+                    f.seek(-2, os.SEEK_CUR)
+                lastLine = getDTfromLine(f.readline().decode('ascii'))
+                if lastLine is None:
+                    meta['lastLineDT'] = meta['firstLineDT']
+                else:
+                    meta['lastLineDT'] = lastLine
+            elif 'TOB' in meta['headers'][0][:10]:
+                msg = f'The file {pathFileName} is a TOB file and need to be converted to TOA'
+                if _log:
+                    log.error(msg)
+                else:
+                    print(msg)
     except Exception as e:
-        print(f'Error in getHeadersFile: {e}')
-        return []
+        msg = f'Error in getMetaDataFile: {e}'
+        if _log:
+            log.error(msg)
+        else:
+            print(msg)
+        f.seek(0)
+    return meta
+
+
+def checkAndConvertFile(pathFile, log=None):
+    """ This method is going to check and performance some steps before to be used by this class.
+     First, it is going to change the name of the curren file adding at the end the timestamp,
+     Second, it will check the first 10 char in the first line of the file has the substring TOA or TOB.
+        If TOB, it will convert the file to TOA using the method convertTOB2TOA in ConverterCambellsciData.py
+            it will get the current full path of the TOA converted file.
+        If TOA, it will continue with the next step.  """
+    toReturn = {'path': None, 'toaPath': None, 'tobPath': None}
+    _log = False
+    if log is not None and isinstance(log, Log.Log):
+        _log = True
+    toReturn['path'] = renameAFileWithDate(pathFile)
+    if isinstance(toReturn['path'], Path):
+        try:
+            with open(str(toReturn['path']), 'rb') as f:
+                firstLine = f.readline().decode('ascii')
+                if 'TOB' in firstLine[0:10]:
+                    toReturn['toaPath'] = ConverterCambellsciData.TOB2TOA(toReturn['path'])
+                if 'TOA' in firstLine[0:10]:
+                    toReturn['toaPath'] = toReturn['path']
+                else:
+                    msg = f'The file {toReturn["path"]} is not a TOA or TOB file'
+                    if _log:
+                        log.error(msg)
+                    else:
+                        print(msg)
+                        toReturn['path'] = None
+                    return toReturn
+        except Exception as e:
+            msg = f'Error in checkFile: {e}'
+            if _log:
+                log.error(msg)
+            else:
+                print(msg)
+            toReturn['path'] = None
+    return toReturn
+
+
+def getDTfromLine(line):
+    """ Return the datetime of the line """
+    line = line.split(',')
+    if len(line) > 0:
+        if len(line[0]) > 0:
+            if len(line[0][1:-1]) == 19:
+                _format = consts.TIMESTAMP_FORMAT_CS_LINE
+            elif len(line[0][1:-1]) > 20:
+                _format = consts.TIMESTAMP_FORMAT_CS_LINE_HF
+            else:
+                _format = consts.TIMESTAMP_FORMAT
+            return systemTools.getDT4Str(line[0][1:-1], _format)
+    return None
 
 
 def getCSFromLine(line):
@@ -172,12 +271,13 @@ def getNameExtension(fileName):
         return None
 
 
-def getStoragePath(site):
-    """ Return the storage path of the file based on the site """
-    consts.CS_STORAGE_PATH.joinpath(site)
+# def getStoragePath(site):
+#     """ Return the storage path of the file based on the site """
+#     consts.CS_STORAGE_PATH.joinpath(site)
+
 
 ###########################################
-### list of files
+# list of files
 def getOnlyFilesNames(path):
     """ return a list of only the name of files on path """
     dirList = os.listdir(path)
@@ -326,7 +426,7 @@ def unzipAfile(fileItem, outputFolder, listFiles=False, onlyExt=[]):
                     if item == name[-len(item):]:
                         lf.append(outputFolder.joinpath(name))
     except zipfile.BadZipfile:
-        print(f"ERROR: bad zip file {fileZ}")
+        print(f"ERROR: bad zip file {fileItem}")
         return None
     if listFiles:
         return lf
@@ -385,23 +485,36 @@ def renameFiles(localFolder):
             newDirList.append(renameAFileWithDate(fileItem))
 
 
-def renameAFileWithDate(pathFile):
+def renameAFileWithDate(pathFile, log=None):
     """ Rename a file with the created date """
+    _log = False
+    if log is not None and isinstance(log, Log.Log):
+        _log = True
     if pathFile.is_file():
-        addName = '_' + time.strftime(consts.TIMESTAMP_FORMAT, time.gmtime(pathFile.stat().st_ctime - consts.SECONDS_TZ))
+        addName = '_' + time.strftime(consts.TIMESTAMP_FORMAT,
+                                      time.gmtime(pathFile.stat().st_ctime - consts.SECONDS_TZ))
         if addName in pathFile.stem:
-            #print(f'The file already have the date in the name {pathFile.name}')
+            if _log:
+                log.info(f'The file already have the date in the name {pathFile.name}')
             return pathFile
         completeName = pathFile.parent.joinpath(pathFile.stem + addName + pathFile.suffix)
-        #print(f'   {pathFile.name} -> {completeName.name}')
+        # print(f'   {pathFile.name} -> {completeName.name}')
         try:
             pathFile.rename(completeName)
         except (PermissionError, WindowsError) as error:
-            print(f'Not possible to rename the file{pathFile} because {error}')
+            msg = f'Not possible to rename the file{pathFile} because {error}'
+            if _log:
+                log.error(msg)
+            else:
+                print(msg)
             return False
         return completeName
     else:
-        print('Not a file', pathFile)
+        msg = f'Not a file {pathFile}'
+        if _log:
+            log.error(msg)
+        else:
+            print(msg)
         return False
 
 
@@ -468,6 +581,7 @@ def checkFolder(path):
         os.remove(os.path.join(path, 'temp'))
     return True
 
+
 # def createFolder(path):
 #    """ Create a folder. """
 #    if not os.path.exists(path):
@@ -493,4 +607,4 @@ def checkFolder(path):
 if __name__ == '__main__':
     print("Testing code is here!")
     # print getPathFilenameExtension('test.csv')
-    print(getInfoFile('Bahada_CR3000_fluxw.dat'))
+    # print(getInfoFile('Bahada_CR3000_fluxw.dat'))

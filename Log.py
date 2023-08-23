@@ -63,7 +63,7 @@
 
 
 from os.path import splitext, basename
-from os import mkdir, system, getcwd
+from os import system, getcwd
 from sys import argv
 from time import localtime
 from datetime import datetime, timedelta
@@ -73,44 +73,52 @@ PATH_LOGS = getcwd()
 TIMESTAMP_FORMAT = '%Y%m%d_%H%M%S'
 
 
-def getStrTime(format=None, utc=False, dst=False):
+def getStrTime(formato=None, utc=False, dst=False):
     """Return the current time in a string with format conts.TIMESTAMP_FORMAT."""
-    if format is None:
-        format = TIMESTAMP_FORMAT
+    if formato is None:
+        formato = TIMESTAMP_FORMAT
     if utc:
-        return str(datetime.utcnow().strftime(format))
+        return str(datetime.utcnow().strftime(formato))
     elif dst:
-        return str(datetime.now().strftime(format))
+        return str(datetime.now().strftime(formato))
     else:
         if localtime().tm_isdst:
-            return str((datetime.now() - timedelta(hours=1)).strftime(format))
+            return str((datetime.now() - timedelta(hours=1)).strftime(formato))
         else:
-            return str(datetime.now().strftime(format))
+            return str(datetime.now().strftime(formato))
 
 
 class Log:
-    """Log the line into the file.
+    """Log the line into the file.  V20230822
           line:      line to print
-          name:      file name without full path (running_process_name)
           path:      path without file name (const.PATH_LOGS)
           timestamp: boolean to indicate if add timestamp (True)
           fprint:    boolean if in addition to print in file, print in stdio (True)
     """
+    path = None
+    name = None
 
-    def __init__(self, name=None, path=PATH_LOGS, timestamp=True, fprint=True):
-        self.name = name
+    def __init__(self, path=PATH_LOGS, timestamp=True, fprint=True):
         self.path = Path(path)
+        self._checkPath_()
         self.timestamp = timestamp
         self.fprint = fprint
-        self._checkPath_()
-        self._checkName_()
 
     def _checkPath_(self):
-        if not self.path.is_dir():
-            mkdir(self.path)
+        if self.path.exists():
+            if self.path.is_file():
+                self.name = self.path.name
+            elif self.path.is_dir():
+                self.name = None
+        elif self.path.suffix == '':
+            self.path.mkdir(parents=True)
+            self.name = None
+        else:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.name = self.path.name
+        self._checkName_()
 
     def _checkName_(self):
-        # pdb.set_trace()
         if self.name is None:
             fn, fe = splitext(basename(argv[0]))
             self.name = fn
@@ -125,15 +133,13 @@ class Log:
         else:
             ext = fExt[1] + '.log'
         self.name = fExt[0] + ext
-        # self.fullPathName = join(self.path, self.name)
-        self.fullPathName = self.path.joinpath(self.name)
 
     def setName(self, name):
         self.name = name
-        self._checkName_()
+        self._checkPath_()
 
     def setPath(self, path):
-        self.path = path
+        self.path = Path(path)
         self._checkPath_()
 
     def setTimeStamp(self, timestamp):
@@ -155,7 +161,7 @@ class Log:
         return self.fprint
 
     def getFullPath(self):
-        return self.fullPathName
+        return self.path
 
     def w(self, line, ow=False):
         """ write the line into the file """
@@ -166,15 +172,15 @@ class Log:
         if type(line) != 'str':
             line = str(line)
         if len(line) > 0:
-            if not self.fullPathName.is_file:
-                f = self.fullPathName.open('w')
+            if not self.path.is_file():
+                f = self.path.open('w')
             else:
                 try:
-                    f = self.fullPathName.open(wo)
+                    f = self.path.open(wo)
                 except IOError:
-                    system('sudo chown pi:pi {}'.format(self.fullPathName))
+                    system('sudo chown pi:pi {}'.format(self.path))
                     try:
-                        f = self.fullPathName.open(wo)
+                        f = self.path.open(wo)
                     except IOError:
                         system('sudo echo error writing {} in file {} >> errLog.log'.format(line, self.name))
                         return

@@ -17,7 +17,7 @@ from itertools import (takewhile, repeat)
 from pathlib import Path
 from dateutil.parser import parse
 try:
-    from consts import TIMESTAMP_FORMAT
+    from consts import TIMESTAMP_FORMAT_FILES, TIMESTAMP_FORMAT_CS_LINE, TIMESTAMP_FORMAT
 except ImportError:
     TIMESTAMP_FORMAT = '%Y%m%d_%H%M%S'
 
@@ -65,12 +65,14 @@ def getStrTime():
     return strftime(TIMESTAMP_FORMAT, gmtime(time.time() - time.timezone))
 
 
-def getDT4Str(strTime):
+def getDT4Str(strTime, format=None):
     """ Return a datetime object from a string with format YYmmdd_HHMMSS   """
+    if format is None:
+        format = TIMESTAMP_FORMAT
     try:
-        dt = datetime.datetime.strptime(strTime, TIMESTAMP_FORMAT)
+        dt = datetime.datetime.strptime(strTime, format)
     except:
-        print('Trying parse because not valid default format:', strTime)
+        print(f'Trying parse because not valid default format ({format}): {strTime}')
         try:
             dt = parse(strTime)
         except:
