@@ -40,13 +40,14 @@ class InfoFile:
     cs_program = None  # datalogger program name from file header
     cs_signature = None  # datalogger program signature from file header
     st_tableName = None  # table name on storage
+    numberColumns = None  # number of columns of the file
     pathL1 = []  # storage paths of the files needed. the files are in the cloud
     pathFile = None  # path of the current file
     pathL0TOA = None  # storage path where the table will be saved in TOA5 format
     pathTOA = None  # path of the current file in TOA5 format
     pathL0TOB = None  # storage path where the table will be saved in TOB1 format
     pathTOB = None  # path of the current file in TOB1 format
-    statusFile = consts.STATUS_FILE_NOT_EXIST  # The file is OK
+    statusFile = consts.STATUS_FILE.copy()  # The file is OK
     pathLog = None  # path for the log
     log = None  # log object
     firstLineDT = None  # datetime object from first line of the file
@@ -60,14 +61,19 @@ class InfoFile:
             self.pathFile = Path(pathFileName)
         else:
             self.pathFile = pathFileName
+        self.pathFile = self.pathFile.resolve()
         if self.pathFile.exists():
             paths = checkAndConvertFile(self.pathFile)
             if paths['path'] is not None:
-                self.pathFile = paths['path']
-                self.pathTOA = paths['toaPath']
-                self.pathTOB = paths['tobPath']
-            else:
-                self.statusFile = consts.STATUS_FILE_NOT_EXIST
+                self.pathFile = Path(paths['path'])
+            if paths['toaPath'] is not None:
+                self.pathTOA = Path(paths['toaPath'])
+            if paths['tobPath'] is not None:
+                self.pathTOB = Path(paths['tobPath'])
+            if paths['err'] is not None:
+                self.statusFile[paths['err']] = True
+        else:
+            self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True
         self.getInfo()
 
     def getInfo(self):
@@ -91,83 +97,124 @@ class InfoFile:
             if self.pathFile.exists():
                 self.f_creationDT = datetime.fromtimestamp(self.pathFile.stat().st_ctime)
                 if self.pathFile.stat().st_size > 1:
-                    self.statusFile = consts.STATUS_FILE_OK
+                    self.statusFile[consts.STATUS_FILE_OK] = True
+                    #self.statusFile[consts.STATUS_FILE_NOT_EXIST] = False
                 else:
-                    self.statusFile = consts.STATUS_FILE_EMPTY
-            if self.statusFile == consts.STATUS_FILE_OK:
-                _meta_ = getHeaderFLlineFile(self.pathFile, self.log)
-                self.cs_headers = _meta_['headers']
-                self.firstLineDT = _meta_['firstLineDT']
-                self.lastLineDT = _meta_['lastLineDT']
-                if len(self.cs_headers) == 0:
-                    self.log.error(f'Error: {self.pathFile} has no headers or it is empty')
+                    self.statusFile[consts.STATUS_FILE_EMPTY] = True
+                    self.log.error(f'{self.pathFile} is empty')
+                    self.terminate()
                     return
-                nl = getStrippedHeaderLine(self.cs_headers[0])
-                self.cs_type = nl[consts.CS_FILE_METADATA['type']].replace('"', '')
-                self.cs_stationName = nl[consts.CS_FILE_METADATA['stationName']].replace('"', '')
-                self.cs_model = nl[consts.CS_FILE_METADATA['model']].replace('"', '')
-                self.cs_serialNumber = nl[consts.CS_FILE_METADATA['serialNumber']].replace('"', '')
-                self.cs_os = nl[consts.CS_FILE_METADATA['os']].replace('"', '')
-                self.cs_program = nl[consts.CS_FILE_METADATA['program']].replace('"', '')
-                self.cs_signature = nl[consts.CS_FILE_METADATA['signature']].replace('"', '')
-                self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']].replace('"', '')
-                self.frequency = consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, '')
-                self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
-                self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
-                year = str(self.f_creationDT.year)
-                month = str(self.f_creationDT.month)
-                day = str(self.f_creationDT.day)
-                filenameTSformat = "%Y%m%d_%H%M%S"
-                # get the number of lines of the file
-                if 'TOA' in self.cs_type:
-                    self.numberLines = systemTools.rawincount(self.pathFile)
-                # file paths
-                self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
-                fcreatioDT = self.f_creationDT.strftime(filenameTSformat)
-                filename = f'{self.f_site}_{self.f_datalogger}_{self.st_tableName}_{fcreatioDT}_L{self.level}'
-                filenameTOA = f'{filename}.TOA'
-                filenameTOB = f'{filename}.DAT'
-                basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName, year, 'Raw_Data')
-                self.pathL0TOA = basePath.joinpath('bin', month, day, filenameTOA)
-                self.pathL0TOB = basePath.joinpath('RAWbin', month, day, filenameTOB)
+            else:
+                self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True
+            if self.statusFile[consts.STATUS_FILE_NOT_EXIST] or not self.statusFile[consts.STATUS_FILE_OK]:
+                self.log.error(f'{self.pathFile} does not exist or there is some problem with it')
+                self.terminate()
+                return
+            _meta_ = getHeaderFLlineFile(self.pathFile, self.log)
+            self.cs_headers = _meta_['headers']
+            self.firstLineDT = _meta_['firstLineDT']
+            self.lastLineDT = _meta_['lastLineDT']
+            if _meta_['lineNumCols'] != _meta_['headerNumCols']:
+                self.log.error(f'{self.pathFile} has different number of columns in the header and in the '
+                               f'first line. The number of columns in the header is {_meta_["headersNumCols"]} and in '
+                               f'the first line is {_meta_["lineNumCols"]}')
+                self.statusFile[consts.STATUS_FILE_MISSMATCH_COLUMNS] = True
+                self.terminate()
+                return
+            self.numberColumns = _meta_['lineNumCols']
+            if len(self.cs_headers) == 0:
+                self.log.error(f'{self.pathFile} has no headers or it is empty')
+                self.statusFile[consts.STATUS_FILE_NOT_HEADER] = True
+                self.terminate()
+                return
+            nl = getStrippedHeaderLine(self.cs_headers[0])
+            self.cs_type = nl[consts.CS_FILE_METADATA['type']].replace('"', '')
+            self.cs_stationName = nl[consts.CS_FILE_METADATA['stationName']].replace('"', '')
+            self.cs_model = nl[consts.CS_FILE_METADATA['model']].replace('"', '')
+            self.cs_serialNumber = nl[consts.CS_FILE_METADATA['serialNumber']].replace('"', '')
+            self.cs_os = nl[consts.CS_FILE_METADATA['os']].replace('"', '')
+            self.cs_program = nl[consts.CS_FILE_METADATA['program']].replace('"', '')
+            self.cs_signature = nl[consts.CS_FILE_METADATA['signature']].replace('"', '')
+            self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']].replace('"', '')
+            self.frequency = consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, '')
+            self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
+            self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
+            year = str(self.f_creationDT.year)
+            month = str(self.f_creationDT.month)
+            day = str(self.f_creationDT.day)
+            filenameTSformat = "%Y%m%d_%H%M%S"
+            # get the number of lines of the file
+            if 'TOA' in self.cs_type:
+                self.numberLines = systemTools.rawincount(self.pathFile) - len(consts.CS_FILE_HEADER_LINE) + 1
+            # file paths
+            self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
+            fcreatioDT = self.f_creationDT.strftime(filenameTSformat)
+            filename = f'{self.f_site}_{self.f_datalogger}_{self.st_tableName}_{fcreatioDT}_L{self.level}'
+            filenameTOA = f'{filename}.TOA'
+            filenameTOB = f'{filename}.DAT'
+            basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName, year, 'Raw_Data')
+            self.pathL0TOA = basePath.joinpath('bin', month, day, filenameTOA)
+            self.pathL0TOB = basePath.joinpath('RAWbin', month, day, filenameTOB)
+            # below here is for the new data structure
+            # *********
+            # basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, 'L0', self.st_tableName)
+            # self.pathL0TOA = basePath.joinpath(year, month, day, filenameTOA)
+            # self.pathL0TOB = basePath.joinpath(year, month, day, filenameTOB)
+            # *********
+            filenameCSV = []
+            if self.st_fq == consts.FREQ_YEARLY:
+                for item in range(self.firstLineDT.year, self.lastLineDT.year + 1):
+                    filenameCSV.append([f'dataL1_{self.st_tableName}_{item}.csv', item])
+            elif self.st_fq == consts.FREQ_DAILY:
+                dtStrF = consts.TABLES_NAME_FORMAT.get(self.cs_tableName, '%Y%m%d')
+                ldt = self.lastLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
+                fdt = self.firstLineDT.replace(hour=23, minute=59)
+                dtDiff = ldt - fdt
+                for item in range(dtDiff.days + 1):
+                    dtItem = fdt + timedelta(days=item)
+                    filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(dtStrF)}_0000.csv',
+                                        dtItem.year])
+            # path data structure
+            basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName)
+            for item in filenameCSV:
+                self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
                 # below here is for the new data structure
                 # *********
-                # basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, 'L0', self.st_tableName)
-                # self.pathL0TOA = basePath.joinpath(year, month, day, filenameTOA)
-                # self.pathL0TOB = basePath.joinpath(year, month, day, filenameTOB)
+                # if self.st_fq == consts.FREQ_YEARLY:
+                #     folderFq = str(item[1])
+                # else:
+                #     folderFq = ''
+                # self.pathL1.append(basePath.joinpath('L1', self.st_tableName, folderFq, item[0]))
                 # *********
-                filenameCSV = []
-                if self.st_fq == consts.FREQ_YEARLY:
-                    for item in range(self.firstLineDT.year, self.lastLineDT.year + 1):
-                        filenameCSV.append([f'dataL1_{self.st_tableName}_{item}.csv', item])
-                elif self.st_fq == consts.FREQ_DAILY:
-                    dtStrF = consts.TABLES_NAME_FORMAT.get(self.cs_tableName, '%Y%m%d')
-                    ldt = self.lastLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
-                    fdt = self.firstLineDT.replace(hour=23, minute=59)
-                    dtDiff = ldt - fdt
-                    for item in range(dtDiff.days + 1):
-                        dtItem = fdt + timedelta(days=item)
-                        filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(dtStrF)}_0000.csv',
-                                            dtItem.year])
-                # path data structure
-                basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName)
-                for item in filenameCSV:
-                    self.pathL1.append(basePath.joinpath(item[1], 'Raw_Data', 'ASCII', item[0]))
-                    # below here is for the new data structure
-                    # *********
-                    # if self.st_fq == consts.FREQ_YEARLY:
-                    #     folderFq = str(item[1])
-                    # else:
-                    #     folderFq = ''
-                    # self.pathL1.append(basePath.joinpath('L1', self.st_tableName, folderFq, item[0]))
-                    # *********
 
         except Exception as e:
-            print(f'Error in getInfoFileName: {e}')
+            self.log.error(f'Exception in getInfoFileName: {e}')
+            self.statusFile[consts.STATUS_FILE_EXCEPTION_ERROR] = True
+            self.terminate()
+
+    def __str__(self):
+        return f'{self.pathFile}'
+
+    def __repr__(self):
+        return f'{self.pathFile}'
+
+    def print(self):
+        di = {}
+        for item in self.__dir__():
+            if not item.startswith('__'):
+                di[item] = self.__getattribute__(item)
+                print(f'{item}: {self.__getattribute__(item)}')
+        return di
+
+    def terminate(self):
+        msg = ''
+        for item in self.statusFile:
+            if self.statusFile[item]:
+                msg += f'{item}, '
+        self.log.info(f'Terminating {self.pathFile.name} with status those flags: {msg[:-2]}')
 
 # TODO:
-#  set correct path for the pathLog
-#  set log object
-#  remove backup path
-#  create frequency correctly
 #  check if this class works
+if __name__ == '__main__':
+    p = Path(r'data/CR3000_flux_20220707_030000.TOA')
+    info = InfoFile(p)

@@ -114,9 +114,22 @@ TABLES_STORAGE_NAME = {
     'met_data': 'met',
     'Soil_CS650': 'Soil', }
 
-STATUS_FILE_NOT_EXIST = 0
-STATUS_FILE_OK = 1
-STATUS_FILE_EMPTY = 2
+STATUS_FILE_NOT_EXIST = 'The file does not exist'
+STATUS_FILE_OK = 'OK'
+STATUS_FILE_EMPTY = 'The file is empty'
+STATUS_FILE_NOT_HEADER = 'The file does not have header'
+STATUS_FILE_MISSMATCH_COLUMNS = 'The file does not have the same number of columns in header and data'
+STATUS_FILE_EXCEPTION_ERROR = 'The file has an exception error'
+STATUS_FILE_UNKNOWN_FORMAT = 'The file has an unknown format'
+STATUS_FILE_NOT_READABLE = 'The file is not readable'
+STATUS_FILE = {
+    STATUS_FILE_NOT_EXIST: False,
+    STATUS_FILE_OK: False,
+    STATUS_FILE_EMPTY: False,
+    STATUS_FILE_NOT_HEADER: False,
+    STATUS_FILE_MISSMATCH_COLUMNS: False,
+    STATUS_FILE_UNKNOWN_FORMAT: False,
+}
 
 CS_DATA_DICT = {
     'extension': '',  # files extension

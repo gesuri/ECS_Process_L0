@@ -155,7 +155,7 @@ def getStrippedHeaderLine(line):
 def getHeaderFLlineFile(pathFileName, log=None):  # TODO: check if this function is working as expected
     """ return a dict with the 'headers' that are the first lines
      'firstLineDT', the first line timestamp od data and the 'lastLine' timestamp of data """
-    meta = {'headers': [], 'firstLineDT': None, 'lastLineDT': None}
+    meta = {'headers': [], 'firstLineDT': None, 'lastLineDT': None, 'headerNumCols': 0, 'lineNumCols': 0}
     _log = False
     if log is not None and isinstance(log, Log.Log):
         _log = True
@@ -163,19 +163,23 @@ def getHeaderFLlineFile(pathFileName, log=None):  # TODO: check if this function
         with open(pathFileName, 'rb') as f:
             for i in range(len(consts.CS_FILE_HEADER_LINE) - 1):
                 meta['headers'].append((f.readline().decode('ascii')).strip())
-            # check if the first 10 chars in the first line on the headers existe the substring TOA
+            meta['headerNumCols'] = len(meta['headers'][1].split(','))
+            # check if the first 10 chars in the first line on the headers exist the substring TOA
             if 'TOA' in meta['headers'][0][:10]:
-                meta['firstLineDT'] = getDTfromLine(f.readline().decode('ascii'))
+                fLine = f.readline().decode('ascii')
+                meta['firstLineDT'] = getDTfromLine(fLine)
                 f.seek(-2, os.SEEK_END)
                 while f.read(1) != b'\n':
                     f.seek(-2, os.SEEK_CUR)
-                lastLine = getDTfromLine(f.readline().decode('ascii'))
+                lLine = f.readline().decode('ascii')
+                lastLine = getDTfromLine(lLine)
                 if lastLine is None:
                     meta['lastLineDT'] = meta['firstLineDT']
                 else:
                     meta['lastLineDT'] = lastLine
+                meta['lineNumCols'] = len(fLine.split(','))
             elif 'TOB' in meta['headers'][0][:10]:
-                msg = f'The file {pathFileName} is a TOB file and need to be converted to TOA'
+                msg = f'The file {pathFileName} is a TOB file and needs to be converted to TOA'
                 if _log:
                     log.error(msg)
                 else:
@@ -197,18 +201,20 @@ def checkAndConvertFile(pathFile, log=None):
         If TOB, it will convert the file to TOA using the method convertTOB2TOA in ConverterCambellsciData.py
             it will get the current full path of the TOA converted file.
         If TOA, it will continue with the next step.  """
-    toReturn = {'path': None, 'toaPath': None, 'tobPath': None}
+    toReturn = {'path': None, 'toaPath': None, 'tobPath': None, 'err': None}
     _log = False
     if log is not None and isinstance(log, Log.Log):
         _log = True
-    toReturn['path'] = renameAFileWithDate(pathFile)
+    toReturn['path'] = renameAFileWithDate(pathFile, log)
     if isinstance(toReturn['path'], Path):
         try:
             with open(str(toReturn['path']), 'rb') as f:
                 firstLine = f.readline().decode('ascii')
                 if 'TOB' in firstLine[0:10]:
                     toReturn['toaPath'] = ConverterCambellsciData.TOB2TOA(toReturn['path'])
-                if 'TOA' in firstLine[0:10]:
+                    toReturn['tobPath'] = toReturn['path']
+                    toReturn['path'] = toReturn['toaPath']
+                elif 'TOA' in firstLine[0:10]:
                     toReturn['toaPath'] = toReturn['path']
                 else:
                     msg = f'The file {toReturn["path"]} is not a TOA or TOB file'
@@ -216,15 +222,15 @@ def checkAndConvertFile(pathFile, log=None):
                         log.error(msg)
                     else:
                         print(msg)
-                        toReturn['path'] = None
+                    toReturn['err'] = consts.STATUS_FILE_UNKNOWN_FORMAT
                     return toReturn
         except Exception as e:
-            msg = f'Error in checkFile: {e}'
+            msg = f'Error opening or reading file {pathFile} in checkFile: {e}'
             if _log:
                 log.error(msg)
             else:
                 print(msg)
-            toReturn['path'] = None
+            toReturn['err'] = consts.STATUS_FILE_NOT_READABLE
     return toReturn
 
 
