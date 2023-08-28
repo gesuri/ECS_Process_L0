@@ -12,6 +12,8 @@
 
 from pathlib import Path
 from datetime import datetime, timedelta
+import pandas as pd
+import matplotlib.pyplot as plt
 
 import consts
 import systemTools
@@ -41,6 +43,8 @@ class InfoFile:
     cs_signature = None  # datalogger program signature from file header
     st_tableName = None  # table name on storage
     numberColumns = None  # number of columns of the file
+    colNames = None  # names of the columns of the file12
+    timestampFormat = None  # timestamp format of the file
     pathL1 = []  # storage paths of the files needed. the files are in the cloud
     pathFile = None  # path of the current file
     pathL0TOA = None  # storage path where the table will be saved in TOA5 format
@@ -112,6 +116,7 @@ class InfoFile:
                 return
             _meta_ = getHeaderFLlineFile(self.pathFile, self.log)
             self.cs_headers = _meta_['headers']
+            self.colNames = getStrippedHeaderLine(self.cs_headers[consts.CS_FILE_HEADER_LINE['FIELDS']])
             self.firstLineDT = _meta_['firstLineDT']
             self.lastLineDT = _meta_['lastLineDT']
             if _meta_['lineNumCols'] != _meta_['headerNumCols']:
@@ -128,15 +133,19 @@ class InfoFile:
                 self.terminate()
                 return
             nl = getStrippedHeaderLine(self.cs_headers[0])
-            self.cs_type = nl[consts.CS_FILE_METADATA['type']].replace('"', '')
-            self.cs_stationName = nl[consts.CS_FILE_METADATA['stationName']].replace('"', '')
-            self.cs_model = nl[consts.CS_FILE_METADATA['model']].replace('"', '')
-            self.cs_serialNumber = nl[consts.CS_FILE_METADATA['serialNumber']].replace('"', '')
-            self.cs_os = nl[consts.CS_FILE_METADATA['os']].replace('"', '')
-            self.cs_program = nl[consts.CS_FILE_METADATA['program']].replace('"', '')
-            self.cs_signature = nl[consts.CS_FILE_METADATA['signature']].replace('"', '')
-            self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']].replace('"', '')
+            self.cs_type = nl[consts.CS_FILE_METADATA['type']]
+            self.cs_stationName = nl[consts.CS_FILE_METADATA['stationName']]
+            self.cs_model = nl[consts.CS_FILE_METADATA['model']]
+            self.cs_serialNumber = nl[consts.CS_FILE_METADATA['serialNumber']]
+            self.cs_os = nl[consts.CS_FILE_METADATA['os']]
+            self.cs_program = nl[consts.CS_FILE_METADATA['program']]
+            self.cs_signature = nl[consts.CS_FILE_METADATA['signature']]
+            self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']]
             self.frequency = consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, '')
+            if self.frequency == consts.FREQ_10HZ:
+                self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE_HF
+            else:
+                self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE
             self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
             self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
             year = str(self.f_creationDT.year)
@@ -214,7 +223,11 @@ class InfoFile:
         self.log.info(f'Terminating {self.pathFile.name} with status those flags: {msg[:-2]}')
 
 # TODO:
-#  check if this class works
+#   pandas to read the file and set in a dataframe
+#    df = pd.read_csv(p2, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE)-1, names=self.colNames,
+#                     index_col=0, parse_dates=True, date_format=self.timestampFormat)
+
+
 if __name__ == '__main__':
     p = Path(r'data/CR3000_flux_20220707_030000.TOA')
     info = InfoFile(p)

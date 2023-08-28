@@ -140,7 +140,8 @@ import systemTools
 
 
 def getStrippedHeaderLine(line):
-    return re.split(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)', line)
+    fields = re.split(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)', line)
+    return [field.strip('"') for field in fields]
 
 
 # def getTableStoragePath(info):
