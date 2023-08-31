@@ -82,11 +82,11 @@ TABLES_NAME_FORMAT = {
 # table file storage frequency
 #TABLES_FREQUENCY_DAILY = ['ts']  # tables that are stored daily
 #TABLES_FREQUENCY_YEARLY = ['flux', 'met_data', 'Soil_CS650']  # tables that are stored yearly
-FREQ_YEARLY = 'yearly'  # yearly frequency
-FREQ_DAILY = 'daily'  # daily frequency
-FREQ_30MIN = '30min'  # 30 min frequency
-FREQ_1MIN = '1min'  # 1 min frequency
-FREQ_10HZ = '10Hz'  # 10 Hz frequency
+FREQ_YEARLY = 'yearly'  # yearly frequency. in pandas freq=
+FREQ_DAILY = 'daily'  # daily frequency. in pandas freq='D'
+FREQ_30MIN = '30min'  # 30 min frequency in pandas freq='30T' or freq='30min'
+FREQ_1MIN = '1min'  # 1 min frequency. in pandas freq='T' or freq='min'
+FREQ_10HZ = '10Hz'  # 10 Hz frequency. in pandas freq='100L'
 
 # table storage path specific names
 TABLES_SPECIFIC_FREQUENCY = {
