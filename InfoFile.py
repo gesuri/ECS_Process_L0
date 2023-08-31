@@ -59,6 +59,7 @@ class InfoFile:
     frequency = None  # frequency of the table
     st_fq = None  # frequency of the table on storage
     level = 0  # level of the file
+    df = None
 
     def __init__(self, pathFileName):
         if not isinstance(pathFileName, Path):
@@ -99,6 +100,7 @@ class InfoFile:
                 self.f_nameDT = systemTools.getDT4Str(fileName[-15:])
             # get the creation date and time of the file
             if self.pathFile.exists():
+                self.statusFile[consts.STATUS_FILE_NOT_EXIST] = False
                 self.f_creationDT = datetime.fromtimestamp(self.pathFile.stat().st_ctime)
                 if self.pathFile.stat().st_size > 1:
                     self.statusFile[consts.STATUS_FILE_OK] = True
@@ -222,10 +224,17 @@ class InfoFile:
                 msg += f'{item}, '
         self.log.info(f'Terminating {self.pathFile.name} with status those flags: {msg[:-2]}')
 
+    def dataFrame(self):
+        self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE)-1,
+                    names=self.colNames, index_col=0, parse_dates=True, date_format=self.timestampFormat)
+
+    def duplicated(self):
+        pass
+
 # TODO:
-#   pandas to read the file and set in a dataframe
-#    df = pd.read_csv(p2, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE)-1, names=self.colNames,
-#                     index_col=0, parse_dates=True, date_format=self.timestampFormat)
+
+#  to create the missing data, dataframe.asfreq(freq='30m') or 'min' or '100L' for 10Hz
+# find duplicates https://pandas.pydata.org/docs/reference/api/pandas.Index.duplicated.html
 
 
 if __name__ == '__main__':
