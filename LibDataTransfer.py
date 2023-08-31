@@ -70,6 +70,8 @@ import shutil
 import time
 import zipfile
 from pathlib import Path
+import pandas as pd
+import numpy as np
 
 import ConverterCambellsciData
 import Log
@@ -259,7 +261,24 @@ def getCSFromLine(line):
     return info
 
 
-def getPathFilenameExtension(pathFileName, resolve=False):
+def fuseDataFrame(df1, df2, freq='30min'):
+    """ Return a dataframe with the data of df1 and df2 sorted and without duplicated index and with the freq """
+    # remove the -9999
+    df_1 = df1.replace(-9999, np.nan)
+    df_2 = df2.replace(-9999, np.nan)
+    # remove the nan
+    df_1 = df_1.dropna()
+    df_2 = df_2.dropna()
+    # concat the dataframes
+    df_con = pd.concat([df_1, df_2])
+    # remove the duplicated index
+    df_cle = df_con[~df_con.index.duplicated()]
+    df_cle = df_cle.sort_index()
+    df_cle = df_cle.asfreq(freq)
+    return df_cle
+
+
+def getPathFilenameExtension(pathFileName, resolve=False):  # TODO: proposed method
     """ Return the dir name, file name, extension """
     pathFileName = Path(pathFileName)
     if resolve:

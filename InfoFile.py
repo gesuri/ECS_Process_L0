@@ -228,8 +228,12 @@ class InfoFile:
         self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE)-1,
                     names=self.colNames, index_col=0, parse_dates=True, date_format=self.timestampFormat)
 
-    def duplicated(self):
-        pass
+    def duplicated(self, dataframe):  # TODO: Still working on this
+        if dataframe is None:
+            dataframe = self.df
+        dataframe.index.duplicated()
+
+    #def addData(self):
 
 # TODO:
 
