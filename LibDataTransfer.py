@@ -72,73 +72,12 @@ import zipfile
 from pathlib import Path
 import pandas as pd
 import numpy as np
+from csv import QUOTE_NONNUMERIC
 
 import ConverterCambellsciData
 import Log
 import consts
 import systemTools
-
-
-###########################################
-# info of files
-
-# def getInfoFile(pathFileName):
-#     """ Return a dictionary with the info of the file
-#     basic:
-#         folder, site, datalogger, table, fileNameDT, extension
-#     advance:
-#         creationDT, numberlines, type, stationName, model, serialNumber, os, program, signature, tableName """
-#     info = consts.CS_DATA_DICT.copy()
-#     info['path'] = pathFileName
-#     # check if the file is a Path object and if not convert it
-#     if not isinstance(pathFileName, Path):
-#         pathFileName = Path(pathFileName)
-#     try:
-#         # get the name of the file
-#         fileName = pathFileName.stem
-#         # get the extension of the file
-#         info['extension'] = pathFileName.suffix
-#         # split the name of the file
-#         fileNameSplit = fileName.split('_')
-#         # get the date and time of the file
-#         info['site'] = fileNameSplit[consts.CS_FILE_NAME_SITE]
-#         info['datalogger'] = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
-#         info['pathLog'] = consts.PATH_CLOUD.joinpath(info['site'], 'logs', fileName[:-15])
-#         # check if the fileNameSplit has more than 3 elements and if yes, get the date and time
-#         if len(fileNameSplit) > 3:
-#             info['fileNameDT'] = systemTools.getDT4Str(fileName[-15:])
-#         # get the creation date and time of the file
-#         if pathFileName.exists():
-#             info['creationDT'] = datetime.datetime.fromtimestamp(pathFileName.stat().st_ctime)
-#             if pathFileName.stat().st_size > 1:
-#                 info['statusFile'] = consts.STATUS_FILE_OK
-#             else:
-#                 info['statusFile'] = consts.STATUS_FILE_EMPTY
-#         if info['statusFile'] == consts.STATUS_FILE_OK:
-#             _meta_ = getMetaDataFile(pathFileName)
-#             for item in _meta_:
-#                 info[item] = _meta_[item]
-#             if len(_meta_['headers']) == 0:
-#                 print(f'Error: {pathFileName} has no headers or it is empty')
-#                 return info
-#             info['headers'] = _meta_['headers']
-#             nl = getStrippedHeaderLine(_meta_['headers'][0])
-#             for item in consts.CS_FILE_METADATA:
-#                 info[item] = nl[consts.CS_FILE_METADATA[item]].replace('"', '')
-#                 # get the number of lines of the file
-#             info['pathLog'] = info['pathLog'].parent.joinpath(info['tableName'])
-#             if 'TOA' in info['type']:
-#                 info['numberlines'] = systemTools.rawincount(pathFileName)
-#             storageTableName = consts.TABLES_SPECIFIC_NAMES.get(info['tableName'], info['tableName'])
-#             info['tableStorage'] = consts.PATH_STORAGE.joinpath(info['site']).joinpath('Tower').joinpath(storageTableName)
-#             psf = consts.PATH_CLOUD.joinpath(info['site'], 'Shared')
-#             info['pathShared'] = psf.joinpath(pathFileName.stem[:-16]+pathFileName.suffix)
-#             info['pathBackup'] = consts.PATH_BACKUP.joinpath(info['site'])
-#     except Exception as e:
-#         print(f'Error in getInfoFileName: {e}')
-#     # return the dictionary
-#     info['log'] = Log.Log(info['pathLog'])
-#     return info
 
 
 def getStrippedHeaderLine(line):
@@ -182,13 +121,13 @@ def getHeaderFLlineFile(pathFileName, log=None):  # TODO: check if this function
                     meta['lastLineDT'] = lastLine
                 meta['lineNumCols'] = len(fLine.split(','))
             elif 'TOB' in meta['headers'][0][:10]:
-                msg = f'The file {pathFileName} is a TOB file and needs to be converted to TOA'
+                msg = f'<LibDataTransfer> The file {pathFileName} is a TOB file and needs to be converted to TOA'
                 if _log:
                     log.error(msg)
                 else:
                     print(msg)
     except Exception as e:
-        msg = f'Error in getMetaDataFile: {e}'
+        msg = f'<LibDataTransfer> Error in getMetaDataFile: {e}'
         if _log:
             log.error(msg)
         else:
@@ -197,7 +136,7 @@ def getHeaderFLlineFile(pathFileName, log=None):  # TODO: check if this function
     return meta
 
 
-def checkAndConvertFile(pathFile, log=None):
+def checkAndConvertFile(pathFile, rename=True, log=None):
     """ This method is going to check and performance some steps before to be used by this class.
      First, it is going to change the name of the curren file adding at the end the timestamp,
      Second, it will check the first 10 char in the first line of the file has the substring TOA or TOB.
@@ -208,16 +147,19 @@ def checkAndConvertFile(pathFile, log=None):
     _log = False
     if log is not None and isinstance(log, Log.Log):
         _log = True
-    toReturn['path'] = renameAFileWithDate(pathFile, log)
+    if rename:
+        toReturn['path'] = renameAFileWithDate(pathFile, log)
+    else:
+        toReturn['path'] = pathFile
     if isinstance(toReturn['path'], Path):
         try:
             with open(str(toReturn['path']), 'rb') as f:
                 firstLine = f.readline().decode('ascii')
-                if 'TOB' in firstLine[0:10]:
-                    toReturn['toaPath'] = ConverterCambellsciData.TOB2TOA(toReturn['path'])
+                if 'TOB' in firstLine[0:10]:  # is a binary (TOB) file
+                    toReturn['toaPath'] = ConverterCambellsciData.TOB2TOA(toReturn['path'], tempDir=True)
                     toReturn['tobPath'] = toReturn['path']
-                    toReturn['path'] = toReturn['toaPath']
-                elif 'TOA' in firstLine[0:10]:
+                    #toReturn['path'] = toReturn['toaPath']
+                elif 'TOA' in firstLine[0:10]:  # is a ascii (TOA) file
                     toReturn['toaPath'] = toReturn['path']
                 else:
                     msg = f'The file {toReturn["path"]} is not a TOA or TOB file'
@@ -228,7 +170,7 @@ def checkAndConvertFile(pathFile, log=None):
                     toReturn['err'] = consts.STATUS_FILE_UNKNOWN_FORMAT
                     return toReturn
         except Exception as e:
-            msg = f'Error opening or reading file {pathFile} in checkFile: {e}'
+            msg = f'<LibDataTransfer> Error opening or reading file {pathFile} in checkFile: {e}'
             if _log:
                 log.error(msg)
             else:
@@ -261,21 +203,102 @@ def getCSFromLine(line):
     return info
 
 
-def fuseDataFrame(df1, df2, freq='30min'):
-    """ Return a dataframe with the data of df1 and df2 sorted and without duplicated index and with the freq """
+def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
+    """ Return a list of dataframes with the data of df1 and df2 sorted and without duplicated index and with the freq
+     Also, it will group the data by the group. If group is 'D' it will group by day or 'Y' by year """
+    start_time = time.time()
+    if freq is None:
+        freq = getFreq4DF(df1)
+    df_cycles = {}
+    if df2 is not None:
+        if not df1.columns.equals(df2.columns):
+            msg = f'<LibDataTransfer> The columns of the dataframes are not the same. df1: {df1.columns} != df2: {df2.columns}'
+            if log:
+                log.error(msg)
+            else:
+                print(msg)
+            return df_cycles
     # remove the -9999
-    df_1 = df1.replace(-9999, np.nan)
-    df_2 = df2.replace(-9999, np.nan)
+    df_1 = df1.replace(consts.FLAG, np.nan)
+    if df2 is not None:
+        df_2 = df2.replace(consts.FLAG, np.nan)
     # remove the nan
-    df_1 = df_1.dropna()
-    df_2 = df_2.dropna()
+    df_1 = df_1.dropna(thresh=(df1.shape[1] - 2)*consts.MIN_PCT_DATA)
+    if df2 is not None:
+        df_2 = df_2.dropna(thresh=(df2.shape[1] - 2)*consts.MIN_PCT_DATA)
     # concat the dataframes
-    df_con = pd.concat([df_1, df_2])
-    # remove the duplicated index
-    df_cle = df_con[~df_con.index.duplicated()]
-    df_cle = df_cle.sort_index()
-    df_cle = df_cle.asfreq(freq)
-    return df_cle
+    if df2 is not None:
+        df_con = pd.concat([df_1, df_2])
+    else:
+        df_con = df_1
+    df_cle = df_con[~df_con.index.duplicated()]  # remove the duplicated from index
+    df_cle = df_cle.sort_index()  # sort the index
+    df_cle = df_cle.asfreq(freq)  # set the frequency, this missing data will be filled with nan
+    if group in ['D', 'Y']:  # return a dict of dataframes
+        for name, gr in df_cle.groupby(pd.Grouper(freq=group)):
+            if group == 'D':
+                n = name.strftime(consts.TIMESTAMP_FORMAT_DAILY)
+            elif group == 'Y':
+                n = name.strftime(consts.TIMESTAMP_FORMAT_YEARLY)
+            df_cycles[n] = gr
+    else:  # return just the dataframe
+        df_cycles[group] = df_cle
+        return df_cycles
+    msg = f'<LibDataTransfer> Fused dataframe in {time.time() - start_time} seconds'
+    if log:
+        log.info(msg)
+    else:
+        print(msg)
+    return df_cycles
+
+
+def datetime_format_HF(dt):
+    """ Return the datetime in the format of the CS logger for high frequency data like ts_data """
+    dec_sec = dt.second+dt.microsecond/1e6
+    for_sec = f'{int(dec_sec)}' if dec_sec%1 == 0 else f'{dec_sec:.1f}'
+    return dt.strftime('%Y-%m-%d %H:%M:') + for_sec
+
+
+def writeDF2csv(pathFile, dataframe, header, overwrite=False, log=None):
+    """ Write a dataframe to a csv file with multiline header """
+    if overwrite and pathFile.exists():
+        # rename the file by adding the timestamp
+        pathOldFile = renameAFileWithDate(pathFile, log)
+        msg = f'<LibDataTransfer> The file {pathFile} was renamed to {pathOldFile}'
+        if log:
+            log.info(msg)
+        else:
+            print(msg)
+    pathFile.parent.mkdir(parents=True, exist_ok=True)
+    # TOD: make a backup and if all was OK, delete the backup
+    newPathFile = None
+    if pathFile.exists():
+        newPathFile = renameAFileWithDate(pathFile, log)
+    with open(pathFile, 'w') as f:
+        for line in header:
+            f.write(line + '\n')
+        dataframe.to_csv(f, header=False, index=True, na_rep=consts.FLAG, lineterminator='\n', quoting=QUOTE_NONNUMERIC)
+    if newPathFile is not None:
+        newPathFile.unlink()
+
+
+def getFragmentation4DF(df):
+    """ Return the fragmentation of the dataframe """
+    # check if the index is a datetime
+    if isinstance(df.index, pd.DatetimeIndex):
+        return (pd.Series(df.index[1:]) - pd.Series(df.index[:-1])).value_counts()
+    else:
+        return None
+
+
+def getFreq4DF(df):
+    """ Return the frequency of the dataframe
+     make sure df has a datetime index """
+    # check if the index is a datetime
+    if isinstance(df.index, pd.DatetimeIndex):
+        return getFragmentation4DF(df).index.min()
+    else:
+        return None
 
 
 def getPathFilenameExtension(pathFileName, resolve=False):  # TODO: proposed method
@@ -477,14 +500,18 @@ def delAfile(pathFile):
         return True
 
 
-def moveAfileWOOW(src, dst):
+def moveAfileWOOW(src, dst, log=None):
     """ move a file without overwriting"""
     src = Path(src)
     dst = Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         dst_ = Path(f'{dst}-{systemTools.getStrTime()}')
-        print(f'The file {dst} already exists, changing to {dst_.name}')
+        msg = f'The file {dst} already exists, changing to {dst_.name}'
+        if log:
+            log.info(msg)
+        else:
+            print(msg)
         dst = dst_
     shutil.copy2(src, dst)
     time.sleep(1)
@@ -492,10 +519,18 @@ def moveAfileWOOW(src, dst):
         try:
             os.remove(src)
         except WindowsError:
-            print('Not possible to erase source file {}'.format(src))
+            msg = '<moveAfileWOOW()>Not possible to erase source file {}'.format(src)
+            if log:
+                log.error(msg)
+            else:
+                print(msg)
             return -1
     else:
-        print('Not copied the file {} into destination {}'.format(src, dst))
+        msg = 'Not copied the file {} into destination {}'.format(src, dst)
+        if log:
+            log.error(msg)
+        else:
+            print(msg)
         return 0
     return 1
 
@@ -528,12 +563,15 @@ def renameAFileWithDate(pathFile, log=None):
         try:
             pathFile.rename(completeName)
         except (PermissionError, WindowsError) as error:
-            msg = f'Not possible to rename the file{pathFile} because {error}'
-            if _log:
-                log.error(msg)
-            else:
-                print(msg)
-            return False
+            try:
+                pathFile.rename(completeName.parent.joinpath(f'{completeName.stem}_{systemTools.getStrTime()}{completeName.suffix}'))
+            except (PermissionError, WindowsError) as error:
+                msg = f'Not possible to rename the file{pathFile} because {error}'
+                if _log:
+                    log.error(msg)
+                else:
+                    print(msg)
+                return False
         return completeName
     else:
         msg = f'Not a file {pathFile}'

@@ -73,10 +73,13 @@ def convertTOB2TOA(pathI, fileI, pathO, fileO, tob32ProgramPath=consts.TOB2PROG)
     os.system(command)
 
 
-def TOB2TOA(pathIn, pathOut=None, tempDir=None, log=None, programPath=consts.TOB2PROG):
+def TOB2TOA(pathIn, pathOut=None, tempDir=False, log=None, programPath=consts.TOB2PROG):
     """ Convert a TOB file to a TOA file using the TOB32.exe program
         pathIn: is the file path to convert to TOA
-        pathOut: is a path of the folder where will be located the new TOA file"""
+        pathOut: is a path of the folder where will be located the new TOA file
+        tempDir: True|False, if True, it will create a temporal directory to save the TOA file
+        If pathIn file is already a TOA file, it will do nothing and return the pathIn
+    """
     pathIn = Path(pathIn)
     tob32 = Path(programPath).joinpath('tob32.exe')
     extOut = '.TOA'
@@ -90,34 +93,45 @@ def TOB2TOA(pathIn, pathOut=None, tempDir=None, log=None, programPath=consts.TOB
         else:
             print(msg)
         return False
-    if pathOut is None:
-        pathOut = pathIn.parent.joinpath(pathIn.stem + extOut)
-    else:
+    if pathOut:  # there is a pathOut so here will be the new file
         pathOut = Path(pathOut)
         if pathOut.suffix == '':
             pathOut = Path(pathOut).joinpath(pathIn.stem + extOut)
+    elif tempDir:  # there is not a pathOut so it will create a temporal directory and it will pathOut
+        pathOut = Path(tempfile.mkdtemp()).joinpath(pathIn.stem + extOut)
+    else:  # not pathOut and not tempDir so the pathOut will be the same as pathIn with different extension
+        pathOut = pathIn.parent.joinpath(pathIn.stem + extOut)
+
+    # if pathOut is None and tempDir is False:
+    #     pathOut = pathIn.parent.joinpath(pathIn.stem + extOut)
+    # elif pathOut:
+    #     pathOut = Path(pathOut)
+    #     if pathOut.suffix == '':
+    #         pathOut = Path(pathOut).joinpath(pathIn.stem + extOut)
+    # else:
+    #     pathOut = Path(tempfile.mkdtemp()).joinpath(pathIn.stem + extOut)
+
     if checkTOAfile(pathIn, log):
-        msg = f'The file {pathIn.name} is an ASCII (TOA) file then just renaming it.'
+        msg = f'The file {pathIn.name} is an ASCII'  # (TOA) file then just renaming it.'
         if _log:
             log.warn(msg)
         else:
             print(msg)
-        try:
-            shutil.move(pathIn, pathOut)
-        except (IOError, os.error):
-            msg = f'[ConvertCambellsciData::TOB2TOA]: Error moving TOA file, {pathIn} to {pathOut}'
-            if _log:
-                log.error(msg)
-            else:
-                print(msg)
-            return False
-        return Path(pathOut)
-    if tempDir is None:
-        tempDir = tempfile.mkdtemp()
-    tempDir = Path(tempDir)
-    tempFile = tempDir.joinpath(pathOut.name)
+        #try:
+        #    shutil.move(pathIn, pathOut)
+        #except (IOError, os.error):
+        #    msg = f'[ConvertCambellsciData::TOB2TOA]: Error moving TOA file, {pathIn} to {pathOut}'
+        #    if _log:
+        #        log.error(msg)
+        #    else:
+        #        print(msg)
+        #    return False
+        return Path(pathIn)  # pathOut)
+    #if tempDir is None:
+    #    tempDir = tempfile.mkdtemp()
+    #tempFile = Path(tempDir).joinpath(pathOut.name)
     #cmd = [str(tob32), '-a', '-r', '-o', os.path.join(tempDir, ''), str(pathIn)]
-    cmd = [str(tob32), '-a', '-r', '-o', str(tempFile), str(pathIn)]
+    cmd = [str(tob32), '-a', '-r', '-o', str(pathOut), str(pathIn)]
     data, error = systemTools.executeCommand(cmd)
     # print("********")
     # print("cmd:", cmd)
@@ -131,10 +145,10 @@ def TOB2TOA(pathIn, pathOut=None, tempDir=None, log=None, programPath=consts.TOB
     #    pdb.set_trace()
     counterWait = 0
     #while not os.path.isfile(os.path.join(tempDir, fileIn + '.TOA')):
-    while not tempFile.is_file():
+    while not pathOut.is_file():
         # print '\t No ready the file yet'
         if counterWait >= (0.1 * 10 * 5):
-            msg = f'[ConvertCambellsciData::TOB2TOA]: Error in file: {fileIn}. It looks that the source file is empty'
+            msg = f'[ConvertCambellsciData::TOB2TOA]: Error in file: {pathIn}. It looks that the source file is empty'
             if _log:
                 log.error(msg)
             else:
@@ -142,22 +156,22 @@ def TOB2TOA(pathIn, pathOut=None, tempDir=None, log=None, programPath=consts.TOB
             break
         counterWait += 1
         time.sleep(0.1)
-    try:
-        # fOut = os.path.join(pathOut,fileIn + '.TOA') #OK
-        # counter = 0
-        # while(os.path.exists(fOut)):
-        #    fOut = os.path.join(pathOut, fileIn + '_' +str(counter) + '.TOA')
-        #    counter = counter + 1
-        # shutil.move(os.path.join(tempDir, fileIn + '.TOA'), fOut)
-        #shutil.move(os.path.join(tempDir, fileIn + '.TOA'), pathOut)
-        shutil.move(tempFile, pathOut)
-    except (IOError, os.error):
-        msg = f'[ConvertCambellsciData::TOB2TOA]: Error: No file converted or problem in temporal directory: {pathIn}'
-        if _log:
-            log.error(msg)
-        else:
-            print(msg)
-        return False
+    # try:
+    #     # fOut = os.path.join(pathOut,fileIn + '.TOA') #OK
+    #     # counter = 0
+    #     # while(os.path.exists(fOut)):
+    #     #    fOut = os.path.join(pathOut, fileIn + '_' +str(counter) + '.TOA')
+    #     #    counter = counter + 1
+    #     # shutil.move(os.path.join(tempDir, fileIn + '.TOA'), fOut)
+    #     #shutil.move(os.path.join(tempDir, fileIn + '.TOA'), pathOut)
+    #     shutil.move(tempFile, pathOut)
+    # except (IOError, os.error):
+    #     msg = f'[ConvertCambellsciData::TOB2TOA]: Error: No file converted or problem in temporal directory: {pathIn}'
+    #     if _log:
+    #         log.error(msg)
+    #     else:
+    #         print(msg)
+    #     return False
     return Path(pathOut)
 
 

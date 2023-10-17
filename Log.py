@@ -69,7 +69,6 @@ from time import localtime
 from datetime import datetime, timedelta
 from pathlib import Path
 
-PATH_LOGS = getcwd()
 TIMESTAMP_FORMAT = '%Y%m%d_%H%M%S'
 
 
@@ -88,6 +87,38 @@ def getStrTime(formato=None, utc=False, dst=False):
             return str(datetime.now().strftime(formato))
 
 
+def pRed(skk):
+    print(f"\033[91m{skk}\033[00m")
+
+
+def pGreen(skk):
+    print(f"\033[92m{skk}\033[00m")
+
+
+def pYellow(skk):
+    print(f"\033[93m {skk}\033[00m")
+
+
+def pLightPurple(skk):
+    print(f"\033[94m {skk}\033[00m")
+
+
+def pPurple(skk):
+    print(f"\033[95m {skk}\033[00m")
+
+
+def pCyan(skk):
+    print(f"\033[96m {skk}\033[00m")
+
+
+def pLightGray(skk):
+    print(f"\033[97m {skk}\033[00m")
+
+
+def pBlack(skk):
+    print(f"\033[98m {skk}\033[00m")
+
+
 class Log:
     """Log the line into the file.  V20230822
           line:      line to print
@@ -96,51 +127,25 @@ class Log:
           fprint:    boolean if in addition to print in file, print in stdio (True)
     """
     path = None
-    name = None
+    #name = None
 
-    def __init__(self, path=PATH_LOGS, timestamp=True, fprint=True):
+    def __init__(self, path=None, timestamp=True, fprint=True):
+        if path is None:
+            path = getcwd()
         self.path = Path(path)
         self._checkPath_()
         self.timestamp = timestamp
         self.fprint = fprint
 
     def _checkPath_(self):
-        if self.path.exists():
-            if self.path.is_file():
-                self.name = self.path.name
-            elif self.path.is_dir():
-                self.name = None
-        elif self.path.suffix == '':
-            self.path.mkdir(parents=True)
-            self.name = None
-        else:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.name = self.path.name
-        self._checkName_()
-
-    def _checkName_(self):
-        if self.name is None:
-            fn, fe = splitext(basename(argv[0]))
-            self.name = fn
-        if len(str(self.name)) == 0:
-            self.name = 'test.log'
-        fExt = splitext(self.name)
-        if '.' in fExt[1]:
-            if len(fExt[1]) == 1:
-                ext = '.log'
-            else:
-                ext = fExt[1]
-        else:
-            ext = fExt[1] + '.log'
-        self.name = fExt[0] + ext
-
-    def setName(self, name):
-        self.name = name
-        self._checkPath_()
-
-    def setPath(self, path):
-        self.path = Path(path)
-        self._checkPath_()
+        if not self.path.exists():
+            if self.path.suffix == '':  # if the path is a directory by checking if there is an extension
+                self.path.mkdir(parents=True)
+                self.path.joinpath('log.log')
+            else:  # the path is a file but maybe the directory does not exist so create it
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self.path.is_dir():
+            self.path = self.path.joinpath(f'{self.path.name}.log')
 
     def setTimeStamp(self, timestamp):
         self.timestamp = timestamp
@@ -148,8 +153,8 @@ class Log:
     def setFprint(self, fprint):
         self.fprint = fprint
 
-    def getName(self):
-        return self.name
+    # def getName(self):
+    #     return self.name
 
     def getPath(self):
         return self.path
@@ -163,7 +168,7 @@ class Log:
     def getFullPath(self):
         return self.path
 
-    def w(self, line, ow=False):
+    def w(self, line, ow=False, color=None):
         """ write the line into the file """
         if ow:
             wo = 'w'
@@ -178,22 +183,26 @@ class Log:
                 try:
                     f = self.path.open(wo)
                 except IOError:
-                    system('sudo chown pi:pi {}'.format(self.path))
+                    system(f'sudo chown pi:pi {self.path}')
                     try:
                         f = self.path.open(wo)
                     except IOError:
-                        system('sudo echo error writing {} in file {} >> errLog.log'.format(line, self.name))
+                        system(f'sudo echo error writing {line} in file {self.path.name} >> errLog.log')
                         return
             now = getStrTime()
             if self.fprint:
                 if self.timestamp:
-                    print('{}, {}'.format(now, line))
+                    msg = f'{now}, {line}'
                 else:
-                    print(line)
+                    msg = line
+                if color:
+                    color(msg)
+                else:
+                    print(msg)
             if line[-1] != '\n':
                 line += '\n'
             if self.timestamp:
-                f.write('{},{}'.format(now, line))
+                f.write(f'{now},{line}')
             else:
                 f.write(line)
             f.flush()
@@ -204,22 +213,19 @@ class Log:
         self.w(line, ow=True)
 
     def error(self, line):
-        self.w('[Error]: ' + str(line))
+        self.w(f'[Error]: {line}', color=pRed)
 
     def warn(self, line):
-        self.w('[Warning]: ' + str(line))
+        self.w(f'[Warning]: {line}', color=pYellow)
 
     def info(self, line):
-        self.w('[Info]: ' + str(line))
+        self.w(f'[Info]: {line}', color=pGreen)
 
     def live(self, line):
-        self.w('[Live]: ' + str(line))
+        self.w(f'[Live]: {line}')
 
     def debug(self, line):
-        self.w('[Debug]: ' + str(line))
+        self.w(f'[Debug]: {line}', color=pCyan)
 
     def fatal(self, line):
-        self.w('[Fatal]: ' + str(line))
-
-    def line(self, line):
-        self.w('[Live]: ' + str(line))
+        self.w(f'[Fatal]: {line}', color=pPurple)

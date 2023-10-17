@@ -13,11 +13,17 @@
 from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib.pyplot as plt
+import time
+import sys
+
+from pandas import DataFrame
+
+# import matplotlib.pyplot as plt
 
 import consts
 import systemTools
-from LibDataTransfer import getHeaderFLlineFile, getStrippedHeaderLine, checkAndConvertFile
+# from LibDataTransfer import getHeaderFLlineFile, getStrippedHeaderLine, checkAndConvertFile
+import LibDataTransfer
 import Log
 
 
@@ -31,6 +37,7 @@ class InfoFile:
     f_datalogger = None  # datalogger name from file name
     f_nameDT = None  # datetime object from file name
     f_creationDT = None  # datetime object from file creation
+    f_size = None  # size of the file
     numberLines = None  # number of lines in the file if it is TOA5 or ASCII
     cs_headers = None  # headers of the file
     cs_tableName = None  # table name from file header
@@ -51,7 +58,7 @@ class InfoFile:
     pathTOA = None  # path of the current file in TOA5 format
     pathL0TOB = None  # storage path where the table will be saved in TOB1 format
     pathTOB = None  # path of the current file in TOB1 format
-    statusFile = consts.STATUS_FILE.copy()  # The file is OK
+    statusFile = None  #consts.STATUS_FILE.copy()  # The file is OK
     pathLog = None  # path for the log
     log = None  # log object
     firstLineDT = None  # datetime object from first line of the file
@@ -60,15 +67,27 @@ class InfoFile:
     st_fq = None  # frequency of the table on storage
     level = 0  # level of the file
     df = None
+    fragmentation = None
+    _cleaned_ = False
+    hf = False  # high frequency flag
 
     def __init__(self, pathFileName):
+        self.statusFile = consts.STATUS_FILE.copy()
+        start_time = time.time()
+        self.log = Log.Log(path=consts.PATH_GENERAL_LOGS.joinpath('InfoFile.log'))
         if not isinstance(pathFileName, Path):
             self.pathFile = Path(pathFileName)
         else:
             self.pathFile = pathFileName
         self.pathFile = self.pathFile.resolve()
-        if self.pathFile.exists():
-            paths = checkAndConvertFile(self.pathFile)
+        rename = True
+        if self.pathFile.suffix.lower() == '.csv':
+            self.level = 1
+            rename = False
+        if self.pathFile.exists():  # check if the file/table exists
+            paths = LibDataTransfer.checkAndConvertFile(
+                self.pathFile, rename=rename, log=self.log)  # check if the file is TOB or TOA, if TOB then convert it
+            # set the correct paths for TOB, and TOA
             if paths['path'] is not None:
                 self.pathFile = Path(paths['path'])
             if paths['toaPath'] is not None:
@@ -78,167 +97,268 @@ class InfoFile:
             if paths['err'] is not None:
                 self.statusFile[paths['err']] = True
         else:
-            self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True
+            self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True  # set missing file flag to statusFile
         self.getInfo()
+        end_time = time.time()
+        self.log.live(f'InfoFile created in {end_time - start_time:.2f} seconds')
 
     def getInfo(self):
+        if self.statusFile[consts.STATUS_FILE_NOT_EXIST] or self.pathTOA is None:
+            return
+        # try:
+        if self.pathTOA.suffix.lower() == '.csv':
+            self.level = 1
+        # get the name of the file
+        fileName = self.pathTOA.stem
+        # get the extension of the file
+        self.f_ext = self.pathTOA.suffix
+        # split the name of the file
+        fileNameSplit = fileName.split('_')
+        # get the date and time of the file
+        self.f_site = fileNameSplit[consts.CS_FILE_NAME_SITE]
+        self.f_site_r = consts.SITE_4_FILE.get(self.f_site, self.f_site)
+        self.f_datalogger = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
+        # get the tentative path for the log file
+        self.pathLog = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, 'logs', 'log.txt')
+        self.log = Log.Log(path=self.pathLog)
+        # check if the fileNameSplit has more than 3 elements and if yes, get the date and time. Usually must be yes
+        if len(fileNameSplit) > 3:
+            self.f_nameDT = systemTools.getDT4Str(fileName[-15:])
+        # get the creation date and time of the file
+        if self.pathTOA.exists():
+            self.f_size = self.pathTOA.stat().st_size
+            self.statusFile[consts.STATUS_FILE_NOT_EXIST] = False
+            self.f_creationDT = datetime.fromtimestamp(self.pathTOA.stat().st_ctime)
+            if self.f_size > 1:
+                self.statusFile[consts.STATUS_FILE_OK] = True
+                # self.statusFile[consts.STATUS_FILE_NOT_EXIST] = False
+            else:
+                self.statusFile[consts.STATUS_FILE_EMPTY] = True
+                self.log.error(f'{self.pathFile} ({self.pathTOA.name}) is empty')
+                self.terminate()
+                return
+        else:
+            self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True
+        if self.statusFile[consts.STATUS_FILE_NOT_EXIST] or not self.statusFile[consts.STATUS_FILE_OK]:
+            self.log.error(f'{self.pathFile} ({self.pathTOA.name}) does not exist or there is some problem with it')
+            self.terminate()
+            return
+        _meta_ = LibDataTransfer.getHeaderFLlineFile(self.pathTOA, self.log)
+        self.cs_headers = _meta_['headers']
+        self.colNames = LibDataTransfer.getStrippedHeaderLine(self.cs_headers[consts.CS_FILE_HEADER_LINE['FIELDS']])
+        self.firstLineDT = _meta_['firstLineDT']
+        self.lastLineDT = _meta_['lastLineDT']
+        if _meta_['lineNumCols'] != _meta_['headerNumCols']:
+            self.log.error(f'{self.pathTOA.name} has different number of columns in the header and in the first line. '
+                           f'The number of columns in the header is {_meta_["headerNumCols"]} and in '
+                           f'the first line is {_meta_["lineNumCols"]}. This file is going to be renamed and avoided')
+            nf = LibDataTransfer.renameAFileWithDate(self.pathTOA, log=self.log)
+            LibDataTransfer.moveAfileWOOW(nf, nf.parent.joinpath(f'{nf.name}.avoided'))
+            self.statusFile[consts.STATUS_FILE_MISSMATCH_COLUMNS] = True
+            self.terminate()
+            return
+        self.numberColumns = _meta_['lineNumCols']
+        if len(self.cs_headers) == 0:
+            self.log.error(f'{self.pathFile} ({self.pathTOA.name}) has no headers or it is empty')
+            self.statusFile[consts.STATUS_FILE_NOT_HEADER] = True
+            self.terminate()
+            return
+        nl = LibDataTransfer.getStrippedHeaderLine(self.cs_headers[0])
+        self.cs_type = nl[consts.CS_FILE_METADATA['type']]
+        self.cs_stationName = nl[consts.CS_FILE_METADATA['stationName']]
+        self.cs_model = nl[consts.CS_FILE_METADATA['model']]
+        self.cs_serialNumber = nl[consts.CS_FILE_METADATA['serialNumber']]
+        self.cs_os = nl[consts.CS_FILE_METADATA['os']]
+        self.cs_program = nl[consts.CS_FILE_METADATA['program']]
+        self.cs_signature = nl[consts.CS_FILE_METADATA['signature']]
+        self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']]
+        self.frequency = consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, consts.FREQ_10HZ)
+        if self.frequency == consts.FREQ_10HZ:
+            self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE_HF
+            self.hf = True
+        else:
+            self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE
+            self.hf = False
+        self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
+        self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
+        year = str(self.f_creationDT.year)
+        month = str(self.f_creationDT.month)
+        day = str(self.f_creationDT.day)
+        filenameTSformat = "%Y%m%d_%H%M%S"
+        # get the number of lines of the file
+        if 'TOA' in self.cs_type:
+            self.numberLines = systemTools.rawincount(self.pathTOA) - len(consts.CS_FILE_HEADER_LINE) + 1
+        # file paths
+        self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
+        fcreatioDT = self.f_creationDT.strftime(filenameTSformat)
+        filename = f'{self.f_site}_{self.f_datalogger}_{self.st_tableName}_{fcreatioDT}_L{self.level}'
+        filenameTOA = f'{filename}.TOA'
+        filenameTOB = f'{filename}.DAT'
+        basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName, year, 'Raw_Data')
+        self.pathL0TOA = basePath.joinpath('bin', month, day, filenameTOA)
+        self.pathL0TOB = basePath.joinpath('RAWbin', month, day, filenameTOB)
+        # below here is for the new data structure
+        # *********
+        # basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, 'L0', self.st_tableName)
+        # self.pathL0TOA = basePath.joinpath(year, month, day, filenameTOA)
+        # self.pathL0TOB = basePath.joinpath(year, month, day, filenameTOB)
+        # *********
+        # self._setL1paths_()
+        self.genDataFrame(clean=True)
+
+    # except Exception as e:
+    #    exc_type, exc_obj, exc_tb = sys.exc_info()
+    #    self.log.error(f'Exception in getInfoFileName: {e}, line {exc_tb.tb_lineno}\n{sys.exc_info()}')
+    #    self.statusFile[consts.STATUS_FILE_EXCEPTION_ERROR] = True
+    #    self.terminate()
+
+    def _setL1paths_(self):
+        if self.df is None:  # TODO: check if there is at least one data in the df
+            self.log.warn(f'No dataframe available, please run genDataFrame()')
+            return
+        dtStrF = consts.TABLES_NAME_FORMAT.get(self.cs_tableName, '%Y%m%d')
         try:
-            # get the name of the file
-            fileName = self.pathFile.stem
-            # get the extension of the file
-            self.f_ext = self.pathFile.suffix
-            # split the name of the file
-            fileNameSplit = fileName.split('_')
-            # get the date and time of the file
-            self.f_site = fileNameSplit[consts.CS_FILE_NAME_SITE]
-            self.f_site_r = consts.SITE_4_FILE.get(self.f_site, self.f_site)
-            self.f_datalogger = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
-            self.pathLog = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, 'logs', 'log.txt')
-            self.log = Log.Log(path=self.pathLog)
-            # check if the fileNameSplit has more than 3 elements and if yes, get the date and time
-            if len(fileNameSplit) > 3:
-                self.f_nameDT = systemTools.getDT4Str(fileName[-15:])
-            # get the creation date and time of the file
-            if self.pathFile.exists():
-                self.statusFile[consts.STATUS_FILE_NOT_EXIST] = False
-                self.f_creationDT = datetime.fromtimestamp(self.pathFile.stat().st_ctime)
-                if self.pathFile.stat().st_size > 1:
-                    self.statusFile[consts.STATUS_FILE_OK] = True
-                    #self.statusFile[consts.STATUS_FILE_NOT_EXIST] = False
-                else:
-                    self.statusFile[consts.STATUS_FILE_EMPTY] = True
-                    self.log.error(f'{self.pathFile} is empty')
-                    self.terminate()
-                    return
-            else:
-                self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True
-            if self.statusFile[consts.STATUS_FILE_NOT_EXIST] or not self.statusFile[consts.STATUS_FILE_OK]:
-                self.log.error(f'{self.pathFile} does not exist or there is some problem with it')
-                self.terminate()
-                return
-            _meta_ = getHeaderFLlineFile(self.pathFile, self.log)
-            self.cs_headers = _meta_['headers']
-            self.colNames = getStrippedHeaderLine(self.cs_headers[consts.CS_FILE_HEADER_LINE['FIELDS']])
-            self.firstLineDT = _meta_['firstLineDT']
-            self.lastLineDT = _meta_['lastLineDT']
-            if _meta_['lineNumCols'] != _meta_['headerNumCols']:
-                self.log.error(f'{self.pathFile} has different number of columns in the header and in the '
-                               f'first line. The number of columns in the header is {_meta_["headersNumCols"]} and in '
-                               f'the first line is {_meta_["lineNumCols"]}')
-                self.statusFile[consts.STATUS_FILE_MISSMATCH_COLUMNS] = True
-                self.terminate()
-                return
-            self.numberColumns = _meta_['lineNumCols']
-            if len(self.cs_headers) == 0:
-                self.log.error(f'{self.pathFile} has no headers or it is empty')
-                self.statusFile[consts.STATUS_FILE_NOT_HEADER] = True
-                self.terminate()
-                return
-            nl = getStrippedHeaderLine(self.cs_headers[0])
-            self.cs_type = nl[consts.CS_FILE_METADATA['type']]
-            self.cs_stationName = nl[consts.CS_FILE_METADATA['stationName']]
-            self.cs_model = nl[consts.CS_FILE_METADATA['model']]
-            self.cs_serialNumber = nl[consts.CS_FILE_METADATA['serialNumber']]
-            self.cs_os = nl[consts.CS_FILE_METADATA['os']]
-            self.cs_program = nl[consts.CS_FILE_METADATA['program']]
-            self.cs_signature = nl[consts.CS_FILE_METADATA['signature']]
-            self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']]
-            self.frequency = consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, '')
-            if self.frequency == consts.FREQ_10HZ:
-                self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE_HF
-            else:
-                self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE
-            self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
-            self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
-            year = str(self.f_creationDT.year)
-            month = str(self.f_creationDT.month)
-            day = str(self.f_creationDT.day)
-            filenameTSformat = "%Y%m%d_%H%M%S"
-            # get the number of lines of the file
-            if 'TOA' in self.cs_type:
-                self.numberLines = systemTools.rawincount(self.pathFile) - len(consts.CS_FILE_HEADER_LINE) + 1
-            # file paths
-            self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
-            fcreatioDT = self.f_creationDT.strftime(filenameTSformat)
-            filename = f'{self.f_site}_{self.f_datalogger}_{self.st_tableName}_{fcreatioDT}_L{self.level}'
-            filenameTOA = f'{filename}.TOA'
-            filenameTOB = f'{filename}.DAT'
-            basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName, year, 'Raw_Data')
-            self.pathL0TOA = basePath.joinpath('bin', month, day, filenameTOA)
-            self.pathL0TOB = basePath.joinpath('RAWbin', month, day, filenameTOB)
+            self.firstLineDT = self.df.index[0]
+            self.lastLineDT = self.df.index[-1]
+        except Exception as e:
+            self.log.error(f'in _setL1paths_ when try to read from df the first and last line {e}')
+            self.log.error(f'{self.df}')
+            return
+        filenameCSV = []
+        self.pathL1 = []
+        hmChars = ''
+        if self.st_fq == consts.FREQ_YEARLY:
+            hmChars = ''
+            for item in range(self.firstLineDT.year, self.lastLineDT.year + 1):
+                filenameCSV.append([f'dataL1_{self.st_tableName}_{item}.csv', item])
+        elif self.st_fq == consts.FREQ_DAILY:
+            hmChars = '_0000'
+            fdt = self.firstLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
+            ldt = self.lastLineDT.replace(hour=23, minute=59)
+            dtDiff = ldt - fdt
+            for item in range(dtDiff.days + 1):
+                dtItem = fdt + timedelta(days=item)
+                filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(dtStrF)}_0000.csv', dtItem.year])
+        # path data structure
+        basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.cs_tableName)
+        for item in filenameCSV:
+            self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
             # below here is for the new data structure
             # *********
-            # basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, 'L0', self.st_tableName)
-            # self.pathL0TOA = basePath.joinpath(year, month, day, filenameTOA)
-            # self.pathL0TOB = basePath.joinpath(year, month, day, filenameTOB)
+            # if self.st_fq == consts.FREQ_YEARLY:
+            #     folderFq = str(item[1])
+            # else:
+            #     folderFq = ''
+            # self.pathL1.append(basePath.joinpath('L1', self.st_tableName, folderFq, item[0]))
             # *********
-            filenameCSV = []
-            if self.st_fq == consts.FREQ_YEARLY:
-                for item in range(self.firstLineDT.year, self.lastLineDT.year + 1):
-                    filenameCSV.append([f'dataL1_{self.st_tableName}_{item}.csv', item])
-            elif self.st_fq == consts.FREQ_DAILY:
-                dtStrF = consts.TABLES_NAME_FORMAT.get(self.cs_tableName, '%Y%m%d')
-                ldt = self.lastLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
-                fdt = self.firstLineDT.replace(hour=23, minute=59)
-                dtDiff = ldt - fdt
-                for item in range(dtDiff.days + 1):
-                    dtItem = fdt + timedelta(days=item)
-                    filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(dtStrF)}_0000.csv',
-                                        dtItem.year])
-            # path data structure
-            basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName)
-            for item in filenameCSV:
-                self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
-                # below here is for the new data structure
-                # *********
-                # if self.st_fq == consts.FREQ_YEARLY:
-                #     folderFq = str(item[1])
-                # else:
-                #     folderFq = ''
-                # self.pathL1.append(basePath.joinpath('L1', self.st_tableName, folderFq, item[0]))
-                # *********
-
-        except Exception as e:
-            self.log.error(f'Exception in getInfoFileName: {e}')
-            self.statusFile[consts.STATUS_FILE_EXCEPTION_ERROR] = True
-            self.terminate()
+        # if self._cleaned_:
+        #     group: DataFrame
+        #     name: datetime
+        #     for name, group in self.df.groupby(pd.Grouper(freq=self.st_fq)):
+        #         group = group.dropna(thresh=(group.shape[1] - 2)*consts.MIN_PCT_DATA)
+        #         if len(group) == 0:
+        #             item = basePath.joinpath(str(name.year), 'Raw_Data', 'ASCII',
+        #                                      f'dataL1_{self.st_tableName}_{name.strftime(dtStrF)}{hmChars}.csv')
+        #             #self.log.live(f'Going to remove the file {item}')
+        #             self.pathL1.remove(item)
 
     def __str__(self):
-        return f'{self.pathFile}'
+        return f'{self.pathFile} ({self.pathTOA.name})'
 
     def __repr__(self):
-        return f'{self.pathFile}'
+        return f'{self.pathFile} ({self.pathTOA.name})'
 
-    def print(self):
+    def print(self, returnDict=False):
         di = {}
         for item in self.__dir__():
             if not item.startswith('__'):
                 di[item] = self.__getattribute__(item)
+                if not returnDict:
+                    print(f'{item}: {self.__getattribute__(item)}')
+        if returnDict:
+            return di
+
+    def printPaths(self):
+        for item in self.__dir__():
+            if 'path' in item:
                 print(f'{item}: {self.__getattribute__(item)}')
-        return di
 
     def terminate(self):
         msg = ''
         for item in self.statusFile:
             if self.statusFile[item]:
                 msg += f'{item}, '
-        self.log.info(f'Terminating {self.pathFile.name} with status those flags: {msg[:-2]}')
+        self.log.live(f'Terminating {self.pathFile.stem} with status those flags: {msg[:-2]}')
 
-    def dataFrame(self):
-        self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE)-1,
-                    names=self.colNames, index_col=0, parse_dates=True, date_format=self.timestampFormat)
+    def genDataFrame(self, clean=True):
+        self.log.live(f'Generating DataFrame for {self.pathFile.stem}')
+        start_time = time.time()
+        self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE) - 1, index_col=0,
+                              na_values=[-99999, "NAN"], names=self.colNames, parse_dates=True, date_format='mixed')
+        self._cleaned_ = False
+        self.setFragmentation()
+        if clean:
+            self.cleanDataFrame()
+        self._setL1paths_()
+        end_time = time.time()
+        self.log.live(f'DataFrame generated in {end_time - start_time:.2f} seconds from a '
+                      f'{systemTools.sizeof_fmt(self.f_size)} file')
 
-    def duplicated(self, dataframe):  # TODO: Still working on this
-        if dataframe is None:
-            dataframe = self.df
-        dataframe.index.duplicated()
+    def checkData(self):  # check the percentage of missing data
+        """ group the data per day and says what percentage is missing data"""
+        name: datetime
+        if self._cleaned_ is False:
+            self.cleanDataFrame()
+        totalRecordsPerDay = pd.Timedelta(days=1) / self.frequency * (self.numberColumns - 1)
+        for name, group in self.df.groupby(pd.Grouper(freq='D')):
+            missing = group.isna().sum().sum()
+            if missing > (self.numberColumns - 1):
+                self.log.info(
+                    f'On {name.strftime("%Y-%m-%d")} were {missing} missing records ({missing / totalRecordsPerDay * 100:.2f}%)')
 
-    #def addData(self):
+    def setFragmentation(self):
+        if self.df is None:
+            self.log.warn(f'No dataframe available, please run genDataFrame()')
+            return
+        self.fragmentation = LibDataTransfer.getFragmentation4DF(self.df)
+        if self.fragmentation is not None:
+            self.fragmentation.index.rename('fragmentation', inplace=True)
+            self.frequency = self.fragmentation.index[0]
+            self.setStorageFrequency()
 
-# TODO:
+    def setStorageFrequency(self, freq=None):
+        if freq:
+            self.st_fq = freq
+        elif self.frequency:
+            if self.frequency < consts.FREQ_1MIN:
+                self.st_fq = consts.FREQ_DAILY
+            else:
+                self.st_fq = consts.FREQ_YEARLY
 
-#  to create the missing data, dataframe.asfreq(freq='30m') or 'min' or '100L' for 10Hz
-# find duplicates https://pandas.pydata.org/docs/reference/api/pandas.Index.duplicated.html
+    def cleanDataFrame(self):
+        if self.df is None or self.df is False:
+            self.log.warn(f'No dataframe available, please run genDataFrame()')
+            return
+        self.log.live(f'Cleaning DataFrame for {self.pathFile.stem}')
+        start_time = time.time()
+        ddf = LibDataTransfer.fuseDataFrame(self.df, freq=self.frequency, group=None, log=self.log)
+        self.df = ddf.pop(None)
+        self._cleaned_ = True
+        self.checkData()
+        end_time = time.time()
+        self.log.live(f'DataFrame cleaned in {end_time - start_time:.2f} seconds')
+
+    def ok(self):
+        r = self.statusFile.get(consts.STATUS_FILE_OK, False)
+        r = r and not self.statusFile.get(consts.STATUS_FILE_EMPTY, False)
+        r = r and not self.statusFile.get(consts.STATUS_FILE_NOT_HEADER, False)
+        r = r and not self.statusFile.get(consts.STATUS_FILE_MISSMATCH_COLUMNS, False)
+        r = r and not self.statusFile.get(consts.STATUS_FILE_EXCEPTION_ERROR, False)
+        r = r and not self.statusFile.get(consts.STATUS_FILE_UNKNOWN_FORMAT, False)
+        r = r and not self.statusFile.get(consts.STATUS_FILE_NOT_READABLE, False)
+        r = r and not self.statusFile.get(consts.STATUS_FILE_NOT_EXIST, False)
+        return r
+
 
 
 if __name__ == '__main__':

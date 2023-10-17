@@ -21,6 +21,9 @@
 # https://help.campbellsci.com/GRANITE9-10/Content/shared/Details/Data/About_Data_Tables.htm?TocPath=Working%20with%20data%7C_____4
 
 from pathlib import Path
+import pandas as pd
+
+dev = True  # True if it is a development version, False if it is a production version
 
 _SITES_ = ['Pecan5R', 'RedLake', 'Kimberly', 'Bahada']  # Sites that are processed
 SITE_4_FILE = {
@@ -31,19 +34,22 @@ SITE_4_FILE = {
 }  # Site name for the file name
 ECS_NAME = 'Tower'  # Name of the Eddy Covariance system folder
 
-# Paths
-PATH_HARVESTED_DATA = Path(r'C:/Campbellsci/LoggerNet/')  # Where LoggerNet save the data
-PATH_WORKING_DATA = Path(r'C:/LatestData')  # Where the data is moved to temporary processed
-#PATH_CLOUD_BASE = Path(r'C:/Users/CZO_data/OneDrive - University of Texas at El Paso/Data/')
-PATH_CLOUD = Path(r'C:/TempSharedFolder/')  # SharePoint/Data/
-##PATH_STORAGE = PATH_CLOUD_BASE.joinpath('storage/')  # Where the data is moved to permanent storage, SharePoint
-PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
-PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
-#PATH_TEMP_SHARED_FOLDER = {}   # Where the files are shared with the other users
-#for site in _SITES_:
-#    PATH_TEMP_SHARED_FOLDER[site] = PATH_CLOUD_BASE.joinpath(site, 'Shared')
-#PATH_BACKUP = PATH_CLOUD_BASE.joinpath('Backup')  # Where the files are backed up
-TOB2PROG = Path(__file__).parent.resolve().joinpath('Programs')
+if not dev:
+    # Paths
+    PATH_HARVESTED_DATA = Path(r'C:/Campbellsci/LoggerNet/')  # Where LoggerNet save the data
+    PATH_WORKING_DATA = Path(r'C:/LatestData')  # Where the data is moved to temporary processed
+    PATH_CLOUD = Path(r'C:/Users/CZO_data/OneDrive - University of Texas at El Paso/Data/')  # Where the data is moved to permanent storage
+    PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
+    PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
+    TOB2PROG = Path(__file__).parent.resolve().joinpath('Programs')
+else:
+    # Paths
+    PATH_HARVESTED_DATA = Path(r'C:/temp/Collected/')  # Where LoggerNet save the data
+    PATH_WORKING_DATA = Path(r'C:/temp/LatestData')  # Where the data is moved to temporary processed
+    PATH_CLOUD = Path(r'C:/temp/Bahada_test')  # SharePoint/Data/
+    PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
+    PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
+    TOB2PROG = Path(__file__).parent.resolve().joinpath('Programs')
 
 # Campbell Scientific files, Meta data info
 # header metadata first line info position
@@ -73,20 +79,22 @@ TIMESTAMP_FORMAT = '%Y%m%d_%H%M%S'
 TIMESTAMP_FORMAT_FILES = '%Y%m%d_%H%M%S'
 TIMESTAMP_FORMAT_CS_LINE_HF = '%Y-%m-%d %H:%M:%S.%f'
 TIMESTAMP_FORMAT_CS_LINE = '%Y-%m-%d %H:%M:%S'
+TIMESTAMP_FORMAT_DAILY = '%Y%m%d_0000'
+TIMESTAMP_FORMAT_YEARLY = '%Y'
 TABLES_NAME_FORMAT = {
-    'ts_data': '%Y%m%d',
-    'flux': '%Y',
-    'met_data': '%Y',
-    'Soil_CS650': '%Y', }
+    'ts_data': TIMESTAMP_FORMAT_DAILY,
+    'flux': TIMESTAMP_FORMAT_YEARLY,
+    'met_data': TIMESTAMP_FORMAT_YEARLY,
+    'Soil_CS650': TIMESTAMP_FORMAT_YEARLY, }
 
 # table file storage frequency
 #TABLES_FREQUENCY_DAILY = ['ts']  # tables that are stored daily
 #TABLES_FREQUENCY_YEARLY = ['flux', 'met_data', 'Soil_CS650']  # tables that are stored yearly
-FREQ_YEARLY = 'yearly'  # yearly frequency. in pandas freq=
-FREQ_DAILY = 'daily'  # daily frequency. in pandas freq='D'
-FREQ_30MIN = '30min'  # 30 min frequency in pandas freq='30T' or freq='30min'
-FREQ_1MIN = '1min'  # 1 min frequency. in pandas freq='T' or freq='min'
-FREQ_10HZ = '10Hz'  # 10 Hz frequency. in pandas freq='100L'
+FREQ_YEARLY = 'Y'  # yearly frequency. in pandas freq=Y
+FREQ_DAILY = 'D'  # daily frequency. in pandas freq='D'
+FREQ_30MIN = pd.Timedelta(minutes=30)  #'30min'  # 30 min frequency in pandas freq='30T' or freq='30min'
+FREQ_1MIN = pd.Timedelta(minutes=1)  # '1min'  # 1 min frequency. in pandas freq='T' or freq='min'
+FREQ_10HZ = pd.Timedelta(seconds=0.1)  # '100L'  # 10 Hz frequency. in pandas freq='100L'
 
 # table storage path specific names
 TABLES_SPECIFIC_FREQUENCY = {
@@ -160,3 +168,6 @@ CS_DATA_DICT = {
     }
 
 YEAR_ = '-YYYY-'  # string to replace the year
+
+FLAG = -9999  # flag for missing data
+MIN_PCT_DATA = 0.5  # minimum percentage of data to be considered valid

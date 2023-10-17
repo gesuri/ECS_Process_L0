@@ -13,7 +13,7 @@ import consts
 import Log
 import systemTools
 
-log = Log.Log(name='mover', path=consts.PATH_LOGS, timestamp=True, fprint=True)
+
 
 
 def setup():
@@ -52,62 +52,8 @@ def arguments(argv):
             sys.exit()
 
 
-def getReadyFiles(dirList):
-    newDirList = []
-    for item in dirList:
-        log.live(f'Renaming {item.name}')
-        nf = LibDataTransfer.renameAFileWithDate(item)
-        if nf:
-            newDirList.append(nf)
-    return newDirList
 
 
-def updateSharedTable(currentTable):
-    """ This function will receive a dict from LibDataTransfer.getInfoFile() as currentTable and will check what is the
-    'pathShared' and will read it with LibDataTransfer.getInfoFile() as sharedTable to get the metadata of the file.
-    Then it will check the 'header' of currentTable and sharedTable and if there are different, it will show the different
-    and will log it in the log file per table, and then the sharedTable file will be renamed with the date and time.
-    a new sharedTable file will be created with the header and data of the currentTable file.
-    If the both headers are the same, the sharedTable file will be open to append at the end of the file and the data of
-    the currentTable file will be appended at the end of the sharedTable file."""
-    sharedTable = LibDataTransfer.getInfoFile(currentTable['pathShared'])
-    diff = differenceHeader(currentTable['header'], sharedTable['header'])
-    if len(diff) > 0:
-        log.info(f'For site {sharedTable["site"]} the table {sharedTable["tableName"]} changed: {diff}')
-        # The file on sharedTable['pathShared'] is going to be renamed with the datetime by using
-        newName = LibDataTransfer.renameAFileWithDate(sharedTable['pathShared'])
-        sharedTable['log'].info(f'The table {sharedTable["tableName"]} was renamed to {newName.name} because it was a '
-                                f'change on the header')
-        if newName:
-            # create a new file with the header of the currentTable and the data of the currentTable
-            # the file will be created with the name of the sharedTable['pathShared'] and it will be writen with the
-            # header of the currentTable
-            with open(sharedTable['pathShared'], 'w') as f:
-                f.write(currentTable['header'])
-        else:
-            msg = f'Error renaming the file {sharedTable["pathShared"]}'
-            log.error(msg)
-            sharedTable['log'].error(msg)
-    # the file on sharedTable['pathShared'] is going to be open to append the data of the currentTable
-    # the sharedTable['pathShared
-    if currentTable['firstLineDT'] > sharedTable['lastLineDT']:
-        # the currentTable file has data that is not on the sharedTable file
-        # the data of the currentTable file will be appended at the end of the sharedTable file
-        with open(sharedTable['pathShared'], 'a') as fShared:
-            with open(currentTable['path'], 'r') as fCurrent:
-                for item in range(len(consts.CS_FILE_HEADER_LINE)):
-                    fCurrent.readline()
-                fShared.write(fCurrent.read())
-                while line := fCurrent.readline():
-                    # check the datetime of the line to see if there is a need to create a new file based on the date
-                    lineDT = LibDataTransfer.getDTfromLine(line)
-                    fShared.write(line)
-    else:
-        # the currentTable file has data that is already on the sharedTable file
-        # the data of the currentTable file will be ignored
-        msg = f'The table {sharedTable["tableName"]} has data that is already on the sharedTable file'
-        log.info(msg)
-        sharedTable['log'].info(msg)
 
 
 def differenceHeader(headerA, headerB):
@@ -159,5 +105,26 @@ def resetFileNames():
         removeDTinFileName(item)
 
 
+def dft(dt):
+    dec_ms = dt.second+dt.microsecond/1e6
+    for_ms = f'{int(dec_ms)}' if dec_ms%1 == 0 else f'{dec_ms:.1f}'
+    return dt.strftime('%Y-%m-%d %H:%M:') + for_ms
+
+
+def writeDF2csv(pathFile, dataframe, header):
+    """ Write a dataframe to a csv file with multiline header """
+    from csv import QUOTE_NONNUMERIC
+    dataframe.index = dataframe.index.map(dft)
+    with open(pathFile, 'w') as f:
+        for line in header:
+            f.write(line + '\n')
+        dataframe.to_csv(f, header=False, index=True, na_rep=consts.FLAG, lineterminator='\n', quoting=QUOTE_NONNUMERIC)
+
+
 if __name__ == '__main__':
-    moveFiles()
+    from pathlib import Path
+    import InfoFile
+    p_csv = Path(r'c:\temp\Collected\Bahada_CR3000_ts_data_2_test.csv')
+    p_dat = Path(r'c:\temp\Collected\Bahada_CR3000_ts_data_2_test_20231016_184040.dat')
+    info = InfoFile.InfoFile(p_dat)
+    writeDF2csv(p_csv, info.df, info.cs_headers)
