@@ -30,27 +30,6 @@ import InfoFile
 import LibDataTransfer
 
 log = Log.Log(path=consts.PATH_GENERAL_LOGS.joinpath('ECS_Process_L0.log'))
-# Sample DataFrame with a datetime index
-# data = {
-#     'timestamp': pd.date_range(start='2023-09-01', periods=86400, freq='1min'),
-#     'value': range(86400)
-# }
-#
-# df = pd.DataFrame(data)
-# df.set_index('timestamp', inplace=True)
-#
-# # Split the DataFrame into daily DataFrames
-# daily_dataframes = []
-#
-# for name, group in df.groupby(pd.Grouper(freq='D')):
-#     print(name)
-#     daily_dataframes.append(group)
-#
-# # Now, daily_dataframes is a list of DataFrames, each containing data for one day.
-# # You can access each daily DataFrame like this:
-# for i, daily_df in enumerate(daily_dataframes):
-#     print(f"Day {i + 1} Data:")
-#     #print(daily_df)
 
 
 def getReadyFiles(dirList):
@@ -62,21 +41,15 @@ def getReadyFiles(dirList):
             newDirList.append(nf)
     return newDirList
 
-def setup():
-    systemTools.createDir(consts.PATH_WORKING_DATA)
-    systemTools.createDir(consts.PATH_STORAGE)
-    systemTools.createDir(consts.PATH_LOGS)
-    systemTools.createDir(consts.PATH_CHECK_FILES)
 
-
-def _help():
-    print("Help:")
-    print('      Default values:')
-    print('         Storage Folder:       ', consts.PATH_STORAGE)
-    print('         LoggerNet working Folder:', consts.PATH_HARVESTED_DATA)
-    print('         Logs Folder:          ', consts.PATH_LOGS)
-    print('         Check | error Folder: ', consts.PATH_CHECK_FILES)
-    print('   mover.py')
+def cmd_help():
+    print('Help:')
+    print("      Default values:")
+    print('         Storage Folder:           ', consts.PATH_CLOUD)
+    print('         LoggerNet working Folder: ', consts.PATH_HARVESTED_DATA)
+    print('         Logs Folder:              ', consts.PATH_GENERAL_LOGS)
+    print('         Check | error Folder:     ', consts.PATH_CHECK_FILES)
+    print('   ECS_Process_L0.py')
     print('   To use default folders use no parameters')
     print('   To change folders, modify consts.py file only if you really know what are you doing!')
 
@@ -85,24 +58,22 @@ def arguments(argv):
     try:
         opts, args = getopt.getopt(argv, "h", ["help"])
     except getopt.GetoptError:
-        _help()
+        cmd_help()
         sys.exit(2)
     if not opts:
         pass
     for opt, arg in opts:
         if opt == '-h':
-            _help()
+            cmd_help()
             sys.exit()
         else:
-            _help()
+            cmd_help()
             sys.exit()
 
 
 def run():
     """Main function
     it will read folder const.PATH_HARVESTED_DATA and each file will be processed
-    # TODO: when end each iteration, move the L0 files (toa, tob) to the corresponding folder
-    #       Also check the column named record cause the number on ts_data_2 has it as float. Maybe replace with a secuential number starting on the beginig of the file
     """
     # get the list of files in the folder
     files = [x for x in consts.PATH_HARVESTED_DATA.iterdir() if x.is_file()]
@@ -110,7 +81,7 @@ def run():
     files = getReadyFiles(files)
     # process the files
     for file in files:  # for each file in the collect folder
-        start1 = time.time()
+        elapsedTime1 = systemTools.ElapsedTime()
         log.live(f'Processing L0 file: {file.name}')
         l0 = InfoFile.InfoFile(file)  # create the object that read the CS file (file Level 0)
         # from fL0 get the related stored files and load them using InfoFile
@@ -134,11 +105,15 @@ def run():
                     if l1.colNames != l0.colNames:  # check columns names
                         log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed the columns names from: "'
                                  f'{l1.colNames}" to: "{l0.colNames}"')
+                    newName = LibDataTransfer.renameAFileWithDate(l1.pathFile, log)
+                    log.warn(f'For site {l1.f_site}, the file L1 {l1.pathFile.name} was renamed because the header to: '
+                             f' {newName.name}')
                 else:
                     log.info(f'For site {l0.f_site}, the table {l0.cs_tableName} there is a L1 file named: '
                              f'{l1.pathFile.name}')
+                    l1.df = None
                 # this section is for the header that is the same from the current to the stored file
-                c_df = LibDataTransfer.fuseDataFrame(l1.df, c_df, freq=l0.frequency, group=l0.st_fq)
+                c_df = LibDataTransfer.fuseDataFrame(c_df, l1.df, freq=l0.frequency, group=l0.st_fq)
                 if len(c_df) > 1:
                     log.error(f'For site {l0.f_site}, the table {l0.cs_tableName} on files {l0.pathFile.name} and '
                               f'{l1.pathFile.name} have more than a set of data grouped on "{l0.st_fq}", {c_df.keys()}.'
@@ -147,25 +122,40 @@ def run():
                 if idx in c_df.keys():
                     c_df = c_df.pop(idx)
                 else:
-                    log.error(f'For site {l0.f_site}, the table {l0.cs_tableName} on files {l0.pathFile.name} and '
+                    log.error(f'!!!!!For site {l0.f_site}, the table {l0.cs_tableName} on files {l0.pathFile.name} and '
                               f'{l1.pathFile.name} have different grouped ({l0.st_fq}) data {c_df.keys()}. Skipped this'
                               f' file.')
                     continue
             else:  # there is not L1 file for the current file so creating a new one
                 log.info(f'For site {l0.f_site}, table {l0.cs_tableName} there is not L1 file. Creating: {fL1.name}')
-            if l0.hf:
+            if l0.hf:  # if high frequency data
+                startDate = c_df.index[0]
+                if startDate != startDate.floor(freq='D'):
+                    log.info(f'For site {l0.f_site}, table {l0.cs_tableName}: Is going to create flagged data from '
+                             'beginning of this day')
+                    c_df = LibDataTransfer.createFlaggedData(df=c_df, freq=consts.FREQ_10HZ, st_fq=consts.FREQ_DAILY)
+                # the index has a slight difference format
                 c_df.index = c_df.index.map(LibDataTransfer.datetime_format_HF)
+            # for RECORD, remove NaN with FLAG and convert to int RECORD column
             c_df['RECORD'] = c_df['RECORD'].fillna(consts.FLAG).astype(int)
+            # write the data to a csv file that is L1
             LibDataTransfer.writeDF2csv(pathFile=fL1, dataframe=c_df, header=l0.cs_headers, log=log)
             end2 = time.time()
-            log.live(f'Total time for file L1: {fL1.name}: {end2 - start2}')
-        end1 = time.time()
-        log.live(f'Total time for file L0: {file.name} {file.name}: {end1 - start1}')
+            log.live(f'Total time for file L1: {fL1.name}: {end2 - start2:.2f} seconds')
+        # move the L0 files to the corresponding folder
+        if l0.pathTOA and l0.pathTOA.is_file():
+            log.debug(f'Moving {l0.pathTOA} to {l0.pathL0TOA}')
+            LibDataTransfer.moveAfileWOOW(l0.pathTOA, l0.pathL0TOA)
+        if l0.pathTOB and l0.pathTOB.is_file():
+            log.debug(f'Moving {l0.pathTOB} to {l0.pathL0TOB}')
+            LibDataTransfer.moveAfileWOOW(l0.pathTOB, l0.pathL0TOB)
+        log.live(f'Total time for file L0: {file.name} {file.name}: {elapsedTime1.elapsed()}')
 
-# TODO:
 
 if __name__ == '__main__':
-    start = time.time()
+    elapsedTime = systemTools.ElapsedTime()
+    arguments(sys.argv[1:])
     run()
-    end = time.time()
-    log.info(f'Total time for all the files: {end - start}')
+    log.info(f'Total time for all the files: {elapsedTime.elapsed()}')
+
+# TODO: check if new file has different header. 1. less/more columns, 2. different columns names

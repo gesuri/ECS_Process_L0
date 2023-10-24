@@ -85,15 +85,6 @@ def getStrippedHeaderLine(line):
     return [field.strip('"') for field in fields]
 
 
-# def getTableStoragePath(info):
-#     """ Return the path of the storage of the site """
-#     storageTableName = consts.TABLES_SPECIFIC_NAMES.get(info['tableName'], info['tableName'])
-#     return consts.PATH_STORAGE.joinpath(info['site']).joinpath('Tower').joinpath(storageTableName)
-
-
-# def getRAWstoragePath(site):
-
-
 def getHeaderFLlineFile(pathFileName, log=None):  # TODO: check if this function is working as expected
     """ return a dict with the 'headers' that are the first lines
      'firstLineDT', the first line timestamp od data and the 'lastLine' timestamp of data """
@@ -318,11 +309,6 @@ def getNameExtension(fileName):
         return fileName.rsplit('.', 1)
     except:
         return None
-
-
-# def getStoragePath(site):
-#     """ Return the storage path of the file based on the site """
-#     consts.CS_STORAGE_PATH.joinpath(site)
 
 
 ###########################################
@@ -646,29 +632,14 @@ def checkFolder(path):
     return True
 
 
-# def createFolder(path):
-#    """ Create a folder. """
-#    if not os.path.exists(path):
-#        os.makedirs(path)
-
-
-# def delFolder(path):
-#    """ Remove or deleate a folder """
-#    if os.path.exists(path):
-#        os.rmdir(path)
-
-
-# def checkAndFixPath(path_):
-#    if path_[-1:] != "\\":
-#        path_ = path_ + "\\"
-#    return path_
-
-
-# def joinPath(path1, path2):
-#    return os.path.join(path1, path2)
-
-
-if __name__ == '__main__':
-    print("Testing code is here!")
-    # print getPathFilenameExtension('test.csv')
-    # print(getInfoFile('Bahada_CR3000_fluxw.dat'))
+def createFlaggedData(df, startDate=None, freq=None, st_fq='D'):
+    if freq is None:
+        freq = df.index.freq
+    end = df.index[0] - freq
+    if startDate is not None:
+        start = startDate
+    else:
+        start = df.index[0].floor(st_fq)
+    date_range = pd.date_range(start=start, end=end, freq=freq)
+    df_flag = pd.DataFrame(index=date_range)
+    return pd.concat([df_flag, df])

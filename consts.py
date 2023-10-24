@@ -39,17 +39,15 @@ if not dev:
     PATH_HARVESTED_DATA = Path(r'C:/Campbellsci/LoggerNet/')  # Where LoggerNet save the data
     PATH_WORKING_DATA = Path(r'C:/LatestData')  # Where the data is moved to temporary processed
     PATH_CLOUD = Path(r'C:/Users/CZO_data/OneDrive - University of Texas at El Paso/Data/')  # Where the data is moved to permanent storage
-    PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
-    PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
-    TOB2PROG = Path(__file__).parent.resolve().joinpath('Programs')
 else:
     # Paths
     PATH_HARVESTED_DATA = Path(r'C:/temp/Collected/')  # Where LoggerNet save the data
     PATH_WORKING_DATA = Path(r'C:/temp/LatestData')  # Where the data is moved to temporary processed
     PATH_CLOUD = Path(r'C:/temp/Bahada_test')  # SharePoint/Data/
-    PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
-    PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
-    TOB2PROG = Path(__file__).parent.resolve().joinpath('Programs')
+
+PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
+PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
+TOB2PROG = Path(__file__).parent.resolve().joinpath('Programs')
 
 # Campbell Scientific files, Meta data info
 # header metadata first line info position
@@ -114,13 +112,19 @@ TABLES_STORAGE_FOLDER_NAMES = {
     'ts_data': 'EddyCovariance_ts',
     'flux': 'Flux',
     'met_data': 'TowerClimate_met',
-    'Soil_CS650': 'SoilSensor_CS650', }
+    'Soil_CS650': 'SoilSensor_CS650',
+    'ts_data_2': 'EC_ts_2', }
 
 TABLES_STORAGE_NAME = {
     'ts_data': 'ts',
     'flux': 'flux',
     'met_data': 'met',
     'Soil_CS650': 'Soil', }
+
+ST_NAME_TOA = 'bin'  # name of the folder where the TOA files are stored
+ST_NAME_TOB = 'RAWbin'  # name of the folder where the TOB files are stored
+ST_EXT_TOA = 'TOA'  # extension of the TOA files
+ST_EXT_TOB = 'DAT'  # extension of the TOB files
 
 STATUS_FILE_NOT_EXIST = 'The file does not exist'
 STATUS_FILE_OK = 'OK'
@@ -136,7 +140,9 @@ STATUS_FILE = {
     STATUS_FILE_EMPTY: False,
     STATUS_FILE_NOT_HEADER: False,
     STATUS_FILE_MISSMATCH_COLUMNS: False,
+    STATUS_FILE_EXCEPTION_ERROR: False,
     STATUS_FILE_UNKNOWN_FORMAT: False,
+    STATUS_FILE_NOT_READABLE: False,
 }
 
 CS_DATA_DICT = {

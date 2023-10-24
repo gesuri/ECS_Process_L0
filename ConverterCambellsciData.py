@@ -249,47 +249,6 @@ def convertTOA2TOB(pathI, fileI, pathO, fileO, programPath=consts.TOB2PROG):
     os.system(command)
 
 
-#def convertAll4TOB2TOA(filesToConv, pathTOB, pathTOA):  # TODO: About add more tables MAYBE NOT NEEDED
-#    """ convert all the files of the EddyTower.
-#        fileToConv: "flux"|"soil"|"met"
-#        pathTOB: path were are the .dat files
-#        pathTOA: path where will be the .TOA (ASCII) files """
-#    if filesToConv.lower() == "flux":
-#        checkIfAllAreTOB(LibDataTransfer.joinPath(pathTOB, fB_flux))
-#        files2do = fB_flux
-#        # convertTOB2TOA(pathTOB, fB_flux, pathTOA)
-#    elif filesToConv.lower() == "soil":
-#        checkIfAllAreTOB(LibDataTransfer.joinPath(pathTOB, fB_SOIL))
-#        files2do = fB_SOIL
-#        # convertTOB2TOA(pathTOB, fB_SOIL, pathTOA)
-#    elif filesToConv.lower() == "met":
-#        checkIfAllAreTOB(LibDataTransfer.joinPath(pathTOB, fB_met))
-#        files2do = fB_met
-#        # convertTOB2TOA(pathTOB, fB_met, pathTOA)
-#    elif filesToConv.lower() == "ts":
-#        checkIfAllAreTOB(LibDataTransfer.joinPath(pathTOB, fB_ts))
-#        files2do = fB_ts
-#        # convertTOB2TOA(pathTOB, fB_ts, pathTOA)
-#    elif filesToConv.lower() == "ectm":
-#        checkIfAllAreTOB(LibDataTransfer.joinPath(pathTOB, fB_ECTM))
-#        files2do = fB_ECTM
-#        # convertTOB2TOA(pathTOB, fB_ECTM, pathTOA)
-#    else:
-#        print("Error: no valid option")
-#        return
-#
-#    # print pathTOB
-#    extensionTOA = ".TOA"
-#    # print files2do
-#    # sys.exit(1)
-#    lista = LibDataTransfer.getListOfFiles(pathTOB, files2do)
-#    print('   List of file to process:')
-#    for item in lista:
-#        fileO = LibDataTransfer.getNameExtension(item)[0]
-#        print(fileO + extensionTOA)
-#        convertTOB2TOA(pathTOB, item, pathTOA, fileO + extensionTOA)
-
-
 def readFirstLine(pathFile, log=None):
     _log = False
     if log is not None and isinstance(log, Log.Log):
@@ -470,35 +429,3 @@ def getMetadataTOxFile(toxPath):
     fp = toxPath.open('rb')
     line = fp.readline().decode('ascii').strip()
     line.strip()
-
-
-
-
-#def checkAndFixTOBFiles(path):  # TODO: About add more tables  MAYBE NOT NEEDED
-#    """ Check each file on the folder if it is TOB file, if not renamed """
-#    print(LibDataTransfer.joinPath(path, fA_flux))
-#    checkIfAllAreTOB(LibDataTransfer.joinPath(path, '*flux*.dat'))
-#    print(LibDataTransfer.joinPath(path, fA_SOIL))
-#    checkIfAllAreTOB(LibDataTransfer.joinPath(path, '*Soil*.dat'))
-#    print(LibDataTransfer.joinPath(path, fA_met))
-#    checkIfAllAreTOB(LibDataTransfer.joinPath(path, '*met*.dat'))
-#    print(LibDataTransfer.joinPath(path, fA_ts))
-#    checkIfAllAreTOB(LibDataTransfer.joinPath(path, '*ts*.dat'))
-#    print(LibDataTransfer.joinPath(path, fA_ECTM))
-#    checkIfAllAreTOB(LibDataTransfer.joinPath(path, '*ECTM*.dat'))
-
-
-#if __name__ == '__main__':
-#    print('Test for this library')
-#    pathTOB_ = "L:\\EC_DATA\\2012\\RAW\\TOB\\CSV\\noDiscon\\TOB_ts\\"
-#    pathTOA_ = "L:\\EC_DATA\\2012\\RAW\\TOB\\CSV\\noDiscon\\"
-#    convertAll4TOB2TOA("flux",pathTOB_,pathTOA_)
-#    convertAll4TOB2TOA("ectm",pathTOB_,pathTOA_)
-#    convertAll4TOB2TOA("met",pathTOB_,pathTOA_)
-#    convertAll4TOB2TOA("ts",pathTOB_,pathTOA_)
-#    convertAll4TOA2TOB("flux", pathTOA_, pathTOB_ + "TOB\\")
-#    convertAll4TOA2TOB("ectm", pathTOA_, pathTOB_ + "TOB\\")
-#    convertAll4TOA2TOB("met", pathTOA_, pathTOB_ + "TOB\\")
-#    convertAll4TOA2TOB("ts", pathTOA_, pathTOB_)
-#    convertTOA2TOB('d:/temp/temp/CSV/', 'ts_201309.csv', 'd:/temp/temp/TOB/', 'ts_201309.dat')
-#    print("Code to test!")

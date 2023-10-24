@@ -14,15 +14,11 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 import time
-import sys
-
-from pandas import DataFrame
 
 # import matplotlib.pyplot as plt
 
 import consts
 import systemTools
-# from LibDataTransfer import getHeaderFLlineFile, getStrippedHeaderLine, checkAndConvertFile
 import LibDataTransfer
 import Log
 
@@ -181,28 +177,11 @@ class InfoFile:
             self.hf = False
         self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
         self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
-        year = str(self.f_creationDT.year)
-        month = str(self.f_creationDT.month)
-        day = str(self.f_creationDT.day)
-        filenameTSformat = "%Y%m%d_%H%M%S"
+
         # get the number of lines of the file
         if 'TOA' in self.cs_type:
             self.numberLines = systemTools.rawincount(self.pathTOA) - len(consts.CS_FILE_HEADER_LINE) + 1
-        # file paths
-        self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
-        fcreatioDT = self.f_creationDT.strftime(filenameTSformat)
-        filename = f'{self.f_site}_{self.f_datalogger}_{self.st_tableName}_{fcreatioDT}_L{self.level}'
-        filenameTOA = f'{filename}.TOA'
-        filenameTOB = f'{filename}.DAT'
-        basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.st_tableName, year, 'Raw_Data')
-        self.pathL0TOA = basePath.joinpath('bin', month, day, filenameTOA)
-        self.pathL0TOB = basePath.joinpath('RAWbin', month, day, filenameTOB)
-        # below here is for the new data structure
-        # *********
-        # basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, 'L0', self.st_tableName)
-        # self.pathL0TOA = basePath.joinpath(year, month, day, filenameTOA)
-        # self.pathL0TOB = basePath.joinpath(year, month, day, filenameTOB)
-        # *********
+        self._setL0paths_()
         # self._setL1paths_()
         self.genDataFrame(clean=True)
 
@@ -212,11 +191,31 @@ class InfoFile:
     #    self.statusFile[consts.STATUS_FILE_EXCEPTION_ERROR] = True
     #    self.terminate()
 
+    def _setL0paths_(self):
+        # file paths
+        year = str(self.f_creationDT.year)
+        month = str(self.f_creationDT.month)
+        day = str(self.f_creationDT.day)
+        self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
+        fcreatioDT = self.f_creationDT.strftime(consts.TIMESTAMP_FORMAT_FILES)
+        filename = f'{self.f_site_r}_{self.cs_model}_{self.st_tableName}_{fcreatioDT}_L0'
+        filenameTOA = f'{filename}.{consts.ST_EXT_TOA}'
+        filenameTOB = f'{filename}.{consts.ST_EXT_TOB}'
+        folderName = consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName, self.cs_tableName)
+        basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName, year, 'Raw_Data')
+        self.pathL0TOA = basePath.joinpath(consts.ST_NAME_TOA, month, day, filenameTOA)
+        self.pathL0TOB = basePath.joinpath(consts.ST_NAME_TOB, month, day, filenameTOB)
+        # below here is for the new data structure
+        # *********
+        # basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, 'L0', self.st_tableName)
+        # self.pathL0TOA = basePath.joinpath(year, month, day, filenameTOA)
+        # self.pathL0TOB = basePath.joinpath(year, month, day, filenameTOB)
+        # *********
+
     def _setL1paths_(self):
         if self.df is None:  # TODO: check if there is at least one data in the df
             self.log.warn(f'No dataframe available, please run genDataFrame()')
             return
-        dtStrF = consts.TABLES_NAME_FORMAT.get(self.cs_tableName, '%Y%m%d')
         try:
             self.firstLineDT = self.df.index[0]
             self.lastLineDT = self.df.index[-1]
@@ -226,21 +225,21 @@ class InfoFile:
             return
         filenameCSV = []
         self.pathL1 = []
-        hmChars = ''
         if self.st_fq == consts.FREQ_YEARLY:
-            hmChars = ''
-            for item in range(self.firstLineDT.year, self.lastLineDT.year + 1):
-                filenameCSV.append([f'dataL1_{self.st_tableName}_{item}.csv', item])
+            for year in range(self.firstLineDT.year, self.lastLineDT.year + 1):
+                filenameCSV.append([f'dataL1_{self.st_tableName}_{year}.csv', year])
         elif self.st_fq == consts.FREQ_DAILY:
-            hmChars = '_0000'
             fdt = self.firstLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
             ldt = self.lastLineDT.replace(hour=23, minute=59)
             dtDiff = ldt - fdt
             for item in range(dtDiff.days + 1):
                 dtItem = fdt + timedelta(days=item)
-                filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(dtStrF)}_0000.csv', dtItem.year])
+                filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)}.csv',
+                                    dtItem.year])
         # path data structure
-        basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, self.cs_tableName)
+        basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME,
+                                              consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName,
+                                                                                     self.cs_tableName))
         for item in filenameCSV:
             self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
             # below here is for the new data structure
@@ -349,14 +348,9 @@ class InfoFile:
         self.log.live(f'DataFrame cleaned in {end_time - start_time:.2f} seconds')
 
     def ok(self):
-        r = self.statusFile.get(consts.STATUS_FILE_OK, False)
-        r = r and not self.statusFile.get(consts.STATUS_FILE_EMPTY, False)
-        r = r and not self.statusFile.get(consts.STATUS_FILE_NOT_HEADER, False)
-        r = r and not self.statusFile.get(consts.STATUS_FILE_MISSMATCH_COLUMNS, False)
-        r = r and not self.statusFile.get(consts.STATUS_FILE_EXCEPTION_ERROR, False)
-        r = r and not self.statusFile.get(consts.STATUS_FILE_UNKNOWN_FORMAT, False)
-        r = r and not self.statusFile.get(consts.STATUS_FILE_NOT_READABLE, False)
-        r = r and not self.statusFile.get(consts.STATUS_FILE_NOT_EXIST, False)
+        self.statusFile[consts.STATUS_FILE_OK] = not self.statusFile[consts.STATUS_FILE_OK]
+        r = all(not self.statusFile.get(item, False) for item in consts.STATUS_FILE.keys())
+        self.statusFile[consts.STATUS_FILE_OK] = not self.statusFile[consts.STATUS_FILE_OK]
         return r
 
 
