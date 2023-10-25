@@ -108,10 +108,10 @@ def run():
                     newName = LibDataTransfer.renameAFileWithDate(l1.pathFile, log)
                     log.warn(f'For site {l1.f_site}, the file L1 {l1.pathFile.name} was renamed because the header to: '
                              f' {newName.name}')
+                    l1.df = None
                 else:
                     log.info(f'For site {l0.f_site}, the table {l0.cs_tableName} there is a L1 file named: '
                              f'{l1.pathFile.name}')
-                    l1.df = None
                 # this section is for the header that is the same from the current to the stored file
                 c_df = LibDataTransfer.fuseDataFrame(c_df, l1.df, freq=l0.frequency, group=l0.st_fq)
                 if len(c_df) > 1:

@@ -246,7 +246,7 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
 def datetime_format_HF(dt):
     """ Return the datetime in the format of the CS logger for high frequency data like ts_data """
     dec_sec = dt.second+dt.microsecond/1e6
-    for_sec = f'{int(dec_sec)}' if dec_sec%1 == 0 else f'{dec_sec:.1f}'
+    for_sec = f'{int(dec_sec):02.0f}' if dec_sec%1 == 0 else f'{dec_sec:04.1f}'
     return dt.strftime('%Y-%m-%d %H:%M:') + for_sec
 
 
