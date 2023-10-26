@@ -66,9 +66,11 @@ class InfoFile:
     fragmentation = None
     _cleaned_ = False
     hf = False  # high frequency flag
+    _getDF_ = False
 
-    def __init__(self, pathFileName):
+    def __init__(self, pathFileName, getDataFrame=False):
         self.statusFile = consts.STATUS_FILE.copy()
+        self._getDF_ = getDataFrame
         start_time = time.time()
         self.log = Log.Log(path=consts.PATH_GENERAL_LOGS.joinpath('InfoFile.log'))
         if not isinstance(pathFileName, Path):
@@ -182,8 +184,8 @@ class InfoFile:
         if 'TOA' in self.cs_type:
             self.numberLines = systemTools.rawincount(self.pathTOA) - len(consts.CS_FILE_HEADER_LINE) + 1
         self._setL0paths_()
-        # self._setL1paths_()
-        self.genDataFrame(clean=True)
+        if self._getDF_:
+            self.genDataFrame(clean=True)
 
     # except Exception as e:
     #    exc_type, exc_obj, exc_tb = sys.exc_info()

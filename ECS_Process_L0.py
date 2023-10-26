@@ -89,6 +89,7 @@ def run():
         i_gDF = list(gDF.keys())
         for fL1 in l0.pathL1:  # for each stored or cloud file related to the current file
             start2 = time.time()
+            createNewFile = False
             log.live(f'For {file.name}, processing L1 {fL1.name}')
             l1 = InfoFile.InfoFile(fL1)
             idx = i_gDF.pop(0)
@@ -99,15 +100,32 @@ def run():
                 chTo = list(set(l0.cs_headers) - set(l1.cs_headers))
                 if len(chFrom) > 0:  # there are changes. log the changes
                     log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed from: "{chFrom}" to: "{chTo}"')
-                    if l1.numberColumns != l0.numberColumns:  # check number of columns
+                    if l1.numberColumns != l0.numberColumns:  # check NUMBER of columns
                         log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed the number of columns '
                                  f'from: "{l1.numberColumns}" to: "{l0.numberColumns}"')
-                    if l1.colNames != l0.colNames:  # check columns names
+                        createNewFile = True
+                    if l1.colNames != l0.colNames:  # check columns NAMES
+                        a = set(l1.colNames) - set(l0.colNames)
+                        b = set(l0.colNames) - set(l1.colNames)
                         log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed the columns names from: "'
-                                 f'{l1.colNames}" to: "{l0.colNames}"')
+                                 f'{a}" to: "{b}"')
+                        createNewFile = True
+                    if l1.cs_signature != l0.cs_signature:
+                        log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed the signature from: "'
+                                 f'{l1.cs_signature}" to: "{l0.cs_signature}"')
+                    if l1.cs_serialNumber != l0.cs_serialNumber:
+                        log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed the serial number from: "'
+                                 f'{l1.cs_serialNumber}" to: "{l0.cs_serialNumber}"')
+                    if l1.cs_program != l0.cs_program:
+                        log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed the program from: "'
+                                 f'{l1.cs_program}" to: "{l0.cs_program}"')
+                    if l1.cs_os != l0.cs_os:
+                        log.warn(f'For site {l1.f_site}, the table {l1.cs_tableName} changed the OS from: "'
+                                 f'{l1.cs_os}" to: "{l0.cs_os}"')
+                if createNewFile:
                     newName = LibDataTransfer.renameAFileWithDate(l1.pathFile, log)
-                    log.warn(f'For site {l1.f_site}, the file L1 {l1.pathFile.name} was renamed because the header to: '
-                             f' {newName.name}')
+                    log.warn(f'For site {l1.f_site}, the file L1 {l1.pathFile.name} was renamed because the header '
+                             f'is different to L0. The new file name is: {newName.name}')
                     l1.df = None
                 else:
                     log.info(f'For site {l0.f_site}, the table {l0.cs_tableName} there is a L1 file named: '
@@ -158,4 +176,4 @@ if __name__ == '__main__':
     run()
     log.info(f'Total time for all the files: {elapsedTime.elapsed()}')
 
-# TODO: check if new file has different header. 1. less/more columns, 2. different columns names
+# TODO: check other sites. 1. Pecan, 2. RedLake

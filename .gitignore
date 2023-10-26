@@ -171,3 +171,4 @@ data/
 *.jpg
 *.xml
 .idea/misc.xml
+*.xml
