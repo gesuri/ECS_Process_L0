@@ -198,12 +198,12 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
     """ Return a list of dataframes with the data of df1 and df2 sorted and without duplicated index and with the freq
      Also, it will group the data by the group. If group is 'D' it will group by day or 'Y' by year """
     start_time = time.time()
-    if freq is None:
-        freq = getFreq4DF(df1)
+
     df_cycles = {}
     if df2 is not None:
         if not df1.columns.equals(df2.columns):
-            msg = f'<LibDataTransfer> The columns of the dataframes are not the same. df1: {df1.columns} != df2: {df2.columns}'
+            msg = (f'<LibDataTransfer> The columns of the dataframes are not the same. df1: {df1.columns} != df2: '
+                   f'{df2.columns}')
             if log:
                 log.error(msg)
             else:
@@ -224,7 +224,9 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
         df_con = df_1
     df_cle = df_con[~df_con.index.duplicated()]  # remove the duplicated from index
     df_cle = df_cle.sort_index()  # sort the index
-    df_cle = df_cle.asfreq(freq)  # set the frequency, this missing data will be filled with nan
+    if not (freq is None):
+        #freq = getFreq4DF(df1)
+        df_cle = df_cle.asfreq(freq)  # set the frequency, this missing data will be filled with nan
     if group in ['D', 'Y']:  # return a dict of dataframes
         for name, gr in df_cle.groupby(pd.Grouper(freq=group)):
             if group == 'D':
@@ -250,7 +252,22 @@ def datetime_format_HF(dt):
     return dt.strftime('%Y-%m-%d %H:%M:') + for_sec
 
 
-def writeDF2csv(pathFile, dataframe, header, overwrite=False, log=None):
+def boolean_format(value):
+    """ Return the boolean in the format of the CS logger """
+    return 'TRUE' if value else 'FALSE'
+
+
+def correct_format(df):
+    """ Return the dataframe with the correct format for the CS logger """
+    #df.index = df.index.map(datetime_format_HF)  # correct the index format
+    for col in df.columns:
+        if df[col].dtype == bool:  # in case it is a boolean, set the correct format
+            df[col] = df[col].apply(boolean_format)
+        #elif
+    #return df
+
+
+def writeDF2csv(pathFile, dataframe, header=None, overwrite=False, log=None):
     """ Write a dataframe to a csv file with multiline header """
     if overwrite and pathFile.exists():
         # rename the file by adding the timestamp
@@ -261,16 +278,22 @@ def writeDF2csv(pathFile, dataframe, header, overwrite=False, log=None):
         else:
             print(msg)
     pathFile.parent.mkdir(parents=True, exist_ok=True)
-    # TOD: make a backup and if all was OK, delete the backup
     newPathFile = None
-    if pathFile.exists():
+    if pathFile.exists():  # if the file exist, make a backup
         newPathFile = renameAFileWithDate(pathFile, log)
+    dataframe_copy = dataframe.copy()
+    correct_format(dataframe_copy)
     with open(pathFile, 'w') as f:
-        for line in header:
-            f.write(line + '\n')
-        dataframe.to_csv(f, header=False, index=True, na_rep=consts.FLAG, lineterminator='\n', quoting=QUOTE_NONNUMERIC)
+        if header is None:
+            header_flag = True
+        else:
+            header_flag = False
+            for line in header:
+                f.write(line + '\n')
+        dataframe_copy.to_csv(f, header=header_flag, index=True, na_rep=consts.FLAG, lineterminator='\n',
+                              quoting=QUOTE_NONNUMERIC)
     if newPathFile is not None:
-        newPathFile.unlink()
+        newPathFile.unlink()  # delete the backup file
 
 
 def getFragmentation4DF(df):

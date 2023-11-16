@@ -153,7 +153,7 @@ def run():
                              'beginning of this day')
                     c_df = LibDataTransfer.createFlaggedData(df=c_df, freq=consts.FREQ_10HZ, st_fq=consts.FREQ_DAILY)
                 # the index has a slight difference format
-                c_df.index = c_df.index.map(LibDataTransfer.datetime_format_HF)
+                c_df.index = c_df.index.map(LibDataTransfer.datetime_format_HF)  # Maybe move to LibDataTransfer.writeDF2csv but need to dectec when uses if it is not HF table
             # for RECORD, remove NaN with FLAG and convert to int RECORD column
             c_df['RECORD'] = c_df['RECORD'].fillna(consts.FLAG).astype(int)
             # write the data to a csv file that is L1
@@ -177,3 +177,4 @@ if __name__ == '__main__':
     log.info(f'Total time for all the files: {elapsedTime.elapsed()}')
 
 # TODO: check other sites. 1. Pecan, 2. RedLake
+#

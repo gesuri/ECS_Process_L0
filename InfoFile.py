@@ -66,11 +66,11 @@ class InfoFile:
     fragmentation = None
     _cleaned_ = False
     hf = False  # high frequency flag
-    _getDF_ = False
+    _cleanDF_ = False
 
-    def __init__(self, pathFileName, getDataFrame=False):
+    def __init__(self, pathFileName, cleanDataFrame=True):
         self.statusFile = consts.STATUS_FILE.copy()
-        self._getDF_ = getDataFrame
+        self._cleanDF_ = cleanDataFrame
         start_time = time.time()
         self.log = Log.Log(path=consts.PATH_GENERAL_LOGS.joinpath('InfoFile.log'))
         if not isinstance(pathFileName, Path):
@@ -146,16 +146,7 @@ class InfoFile:
         self.colNames = LibDataTransfer.getStrippedHeaderLine(self.cs_headers[consts.CS_FILE_HEADER_LINE['FIELDS']])
         self.firstLineDT = _meta_['firstLineDT']
         self.lastLineDT = _meta_['lastLineDT']
-        if _meta_['lineNumCols'] != _meta_['headerNumCols']:
-            self.log.error(f'{self.pathTOA.name} has different number of columns in the header and in the first line. '
-                           f'The number of columns in the header is {_meta_["headerNumCols"]} and in '
-                           f'the first line is {_meta_["lineNumCols"]}. This file is going to be renamed and avoided')
-            nf = LibDataTransfer.renameAFileWithDate(self.pathTOA, log=self.log)
-            LibDataTransfer.moveAfileWOOW(nf, nf.parent.joinpath(f'{nf.name}.avoided'))
-            self.statusFile[consts.STATUS_FILE_MISSMATCH_COLUMNS] = True
-            self.terminate()
-            return
-        self.numberColumns = _meta_['lineNumCols']
+
         if len(self.cs_headers) == 0:
             self.log.error(f'{self.pathFile} ({self.pathTOA.name}) has no headers or it is empty')
             self.statusFile[consts.STATUS_FILE_NOT_HEADER] = True
@@ -179,13 +170,21 @@ class InfoFile:
             self.hf = False
         self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
         self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
-
+        if not (self.cs_tableName in consts.STATIC_TABLES) and _meta_['lineNumCols'] != _meta_['headerNumCols']:
+            self.log.error(f'{self.pathTOA.name} has different number of columns in the header and in the first line. '
+                           f'The number of columns in the header is {_meta_["headerNumCols"]} and in '
+                           f'the first line is {_meta_["lineNumCols"]}. This file is going to be renamed and avoided')
+            nf = LibDataTransfer.renameAFileWithDate(self.pathTOA, log=self.log)
+            LibDataTransfer.moveAfileWOOW(nf, nf.parent.joinpath(f'{nf.name}.avoided'))
+            self.statusFile[consts.STATUS_FILE_MISSMATCH_COLUMNS] = True
+            self.terminate()
+            return
+        self.numberColumns = _meta_['lineNumCols']
         # get the number of lines of the file
         if 'TOA' in self.cs_type:
             self.numberLines = systemTools.rawincount(self.pathTOA) - len(consts.CS_FILE_HEADER_LINE) + 1
         self._setL0paths_()
-        if self._getDF_:
-            self.genDataFrame(clean=True)
+        self.genDataFrame()
 
     # except Exception as e:
     #    exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -288,17 +287,19 @@ class InfoFile:
         msg = ''
         for item in self.statusFile:
             if self.statusFile[item]:
+                if item == consts.STATUS_FILE_OK:
+                    continue
                 msg += f'{item}, '
         self.log.live(f'Terminating {self.pathFile.stem} with status those flags: {msg[:-2]}')
 
-    def genDataFrame(self, clean=True):
+    def genDataFrame(self):
         self.log.live(f'Generating DataFrame for {self.pathFile.stem}')
         start_time = time.time()
         self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE) - 1, index_col=0,
                               na_values=[-99999, "NAN"], names=self.colNames, parse_dates=True, date_format='mixed')
         self._cleaned_ = False
         self.setFragmentation()
-        if clean:
+        if self._cleanDF_:
             self.cleanDataFrame()
         self._setL1paths_()
         end_time = time.time()
@@ -324,7 +325,8 @@ class InfoFile:
         self.fragmentation = LibDataTransfer.getFragmentation4DF(self.df)
         if self.fragmentation is not None:
             self.fragmentation.index.rename('fragmentation', inplace=True)
-            self.frequency = self.fragmentation.index[0]
+            if consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, None) is not None:
+                self.frequency = self.fragmentation.index[0]
             self.setStorageFrequency()
 
     def setStorageFrequency(self, freq=None):
@@ -345,7 +347,8 @@ class InfoFile:
         ddf = LibDataTransfer.fuseDataFrame(self.df, freq=self.frequency, group=None, log=self.log)
         self.df = ddf.pop(None)
         self._cleaned_ = True
-        self.checkData()
+        if not (self.cs_tableName in consts.STATIC_TABLES):
+            self.checkData()
         end_time = time.time()
         self.log.live(f'DataFrame cleaned in {end_time - start_time:.2f} seconds')
 
@@ -354,7 +357,6 @@ class InfoFile:
         r = all(not self.statusFile.get(item, False) for item in consts.STATUS_FILE.keys())
         self.statusFile[consts.STATUS_FILE_OK] = not self.statusFile[consts.STATUS_FILE_OK]
         return r
-
 
 
 if __name__ == '__main__':

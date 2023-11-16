@@ -34,6 +34,8 @@ SITE_4_FILE = {
 }  # Site name for the file name
 ECS_NAME = 'Tower'  # Name of the Eddy Covariance system folder
 
+STATIC_TABLES = ['Config_Setting_Notes', 'Const_Table', 'CPIStatus']  # tables that are not gap filled
+
 if not dev:
     # Paths
     PATH_HARVESTED_DATA = Path(r'C:/Campbellsci/LoggerNet/')  # Where LoggerNet save the data
@@ -99,7 +101,12 @@ TABLES_SPECIFIC_FREQUENCY = {
     'ts_data': FREQ_10HZ,
     'flux': FREQ_30MIN,
     'met_data': FREQ_1MIN,
-    'Soil_CS650': FREQ_30MIN, }
+    'Soil_CS650': FREQ_30MIN,
+    #'Config_Setting_Notes': None,  # this table is not gap filled
+    #'Const_Table': None,  # this table is not gap filled
+     }
+for item in STATIC_TABLES:
+    TABLES_SPECIFIC_FREQUENCY[item] = None  # this table is not gap filled
 
 TABLES_STORAGE_FREQUENCY = {
     'ts_data': FREQ_DAILY,
