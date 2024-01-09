@@ -246,10 +246,32 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
 
 
 def datetime_format_HF(dt):
-    """ Return the datetime in the format of the CS logger for high frequency data like ts_data """
+    """ Return the datetime in the format of the CS logger for high frequency data like ts_data in 10Hz, just one
+    decimal but if zero, it will be removed.
+    e.g.: "2023-09-11 00:00:02.9" and  "2023-09-11 00:00:03"
+    Call it by: df.index = df.index.map(datetime_format_HF) """
     dec_sec = dt.second+dt.microsecond/1e6
     for_sec = f'{int(dec_sec):02.0f}' if dec_sec%1 == 0 else f'{dec_sec:04.1f}'
     return dt.strftime('%Y-%m-%d %H:%M:') + for_sec
+
+
+def datetime_format(dt, numDec=1):
+    """ Return the datetime in the format of the CS logger. For some specific format where select number of decimals but
+    if last decimals are zero then are removed.
+    e.g: for numDec=3: "2023-07-19 10:54:38.219" or "2023-07-19 10:59:38.24"
+    call by:  c_df.index = df.index.map(lambda x: LibDataTransfer.datetime_format(x,3)) """
+    parts = dt.strftime("%Y-%m-%d %H:%M:%S.%f").split('.')
+    date_part = parts[0]
+    fractional_part = ''
+    if len(parts) == 2:
+        date_part, fractional_part = parts
+        fractional_part = fractional_part[:numDec]
+        fractional_part = fractional_part.rstrip('0')
+    if fractional_part:
+        result_string = f"{date_part}.{fractional_part}"
+    else:
+        result_string = date_part
+    return result_string
 
 
 def boolean_format(value):
@@ -267,8 +289,11 @@ def correct_format(df):
     #return df
 
 
-def writeDF2csv(pathFile, dataframe, header=None, overwrite=False, log=None):
+def writeDF2csv(pathFile, dataframe, header=None, indexMapFunc=None, overwrite=False, log=None):
     """ Write a dataframe to a csv file with multiline header """
+    if indexMapFunc is not None:
+        dataframe.index = dataframe.index.map(indexMapFunc)
+    dataframe['RECORD'] = dataframe['RECORD'].fillna(consts.FLAG).astype(int)
     if overwrite and pathFile.exists():
         # rename the file by adding the timestamp
         pathOldFile = renameAFileWithDate(pathFile, log)
