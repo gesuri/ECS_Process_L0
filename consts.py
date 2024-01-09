@@ -1,7 +1,6 @@
 # -------------------------------------------------------------------------------
 # Name:        Const file for EddyCovarinceSystem Process for L0 Data
 # Purpose:     Have constants and some configuration for all the scripts on this system
-
 #
 # Version:     0.1
 #
@@ -20,8 +19,10 @@
 # info about CS tables:
 # https://help.campbellsci.com/GRANITE9-10/Content/shared/Details/Data/About_Data_Tables.htm?TocPath=Working%20with%20data%7C_____4
 
+import datetime
 from pathlib import Path
 import pandas as pd
+
 
 dev = True  # True if it is a development version, False if it is a production version
 
@@ -34,14 +35,12 @@ SITE_4_FILE = {
 }  # Site name for the file name
 ECS_NAME = 'Tower'  # Name of the Eddy Covariance system folder
 
-STATIC_TABLES = ['Config_Setting_Notes', 'Const_Table', 'CPIStatus']  # tables that are not gap filled
-
-if not dev:
+if not dev:  # production version
     # Paths
     PATH_HARVESTED_DATA = Path(r'C:/Campbellsci/LoggerNet/')  # Where LoggerNet save the data
     PATH_WORKING_DATA = Path(r'C:/LatestData')  # Where the data is moved to temporary processed
     PATH_CLOUD = Path(r'C:/Users/CZO_data/OneDrive - University of Texas at El Paso/Data/')  # Where the data is moved to permanent storage
-else:
+else:  # development version
     # Paths
     PATH_HARVESTED_DATA = Path(r'C:/temp/Collected/')  # Where LoggerNet save the data
     PATH_WORKING_DATA = Path(r'C:/temp/LatestData')  # Where the data is moved to temporary processed
@@ -81,52 +80,13 @@ TIMESTAMP_FORMAT_CS_LINE_HF = '%Y-%m-%d %H:%M:%S.%f'
 TIMESTAMP_FORMAT_CS_LINE = '%Y-%m-%d %H:%M:%S'
 TIMESTAMP_FORMAT_DAILY = '%Y%m%d_0000'
 TIMESTAMP_FORMAT_YEARLY = '%Y'
-TABLES_NAME_FORMAT = {
-    'ts_data': TIMESTAMP_FORMAT_DAILY,
-    'flux': TIMESTAMP_FORMAT_YEARLY,
-    'met_data': TIMESTAMP_FORMAT_YEARLY,
-    'Soil_CS650': TIMESTAMP_FORMAT_YEARLY, }
 
 # table file storage frequency
-#TABLES_FREQUENCY_DAILY = ['ts']  # tables that are stored daily
-#TABLES_FREQUENCY_YEARLY = ['flux', 'met_data', 'Soil_CS650']  # tables that are stored yearly
 FREQ_YEARLY = 'Y'  # yearly frequency. in pandas freq=Y
 FREQ_DAILY = 'D'  # daily frequency. in pandas freq='D'
 FREQ_30MIN = pd.Timedelta(minutes=30)  #'30min'  # 30 min frequency in pandas freq='30T' or freq='30min'
 FREQ_1MIN = pd.Timedelta(minutes=1)  # '1min'  # 1 min frequency. in pandas freq='T' or freq='min'
 FREQ_10HZ = pd.Timedelta(seconds=0.1)  # '100L'  # 10 Hz frequency. in pandas freq='100L'
-
-# table storage path specific names
-TABLES_SPECIFIC_FREQUENCY = {
-    'ts_data': FREQ_10HZ,
-    'flux': FREQ_30MIN,
-    'met_data': FREQ_1MIN,
-    'Soil_CS650': FREQ_30MIN,
-    #'Config_Setting_Notes': None,  # this table is not gap filled
-    #'Const_Table': None,  # this table is not gap filled
-     }
-for item in STATIC_TABLES:
-    TABLES_SPECIFIC_FREQUENCY[item] = None  # this table is not gap filled
-
-TABLES_STORAGE_FREQUENCY = {
-    'ts_data': FREQ_DAILY,
-    'flux': FREQ_YEARLY,
-    'met_data': FREQ_YEARLY,
-    'Soil_CS650': FREQ_YEARLY, }
-
-# table storage path specific names
-TABLES_STORAGE_FOLDER_NAMES = {
-    'ts_data': 'EddyCovariance_ts',
-    'flux': 'Flux',
-    'met_data': 'TowerClimate_met',
-    'Soil_CS650': 'SoilSensor_CS650',
-    'ts_data_2': 'EC_ts_2', }
-
-TABLES_STORAGE_NAME = {
-    'ts_data': 'ts',
-    'flux': 'flux',
-    'met_data': 'met',
-    'Soil_CS650': 'Soil', }
 
 ST_NAME_TOA = 'bin'  # name of the folder where the TOA files are stored
 ST_NAME_TOB = 'RAWbin'  # name of the folder where the TOB files are stored
@@ -182,5 +142,18 @@ CS_DATA_DICT = {
 
 YEAR_ = '-YYYY-'  # string to replace the year
 
+MIN_PCT_DATA = 0.1  # minimum percentage of data to be considered valid
+# it was 0.5
+
 FLAG = -9999  # flag for missing data
-MIN_PCT_DATA = 0.5  # minimum percentage of data to be considered valid
+CLASS_STATIC = 'static'  # static table
+CLASS_DYNAMIC = 'dynamic'  # dynamic table
+DEFAULT_L1_NAME_POSTFIX = TIMESTAMP_FORMAT_YEARLY  # default name postfix for L1 files
+DEFAULT_FREQUENCY = FREQ_30MIN  # default frequency
+DEFAULT_L1_FILE_FREQUENCY = FREQ_YEARLY  # default frequency for L1 files
+DEFAULT_CLASS = CLASS_DYNAMIC  # default class
+DEFAULT_COLS_2_PLOT = []  # default columns to plot
+FREQ_STATIC = -1  # default frequency for static tables
+DEFAULT_SAVE_L0_TOB = True  # default value for saveL0TOB
+DEFAULT_ARCHIVE_AFTER = datetime.timedelta(days=2*365)  # default value for archiveAfter
+DEFAULT_NAN_VALUE = FLAG  # default value for nanValue

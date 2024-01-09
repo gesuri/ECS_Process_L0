@@ -10,6 +10,32 @@
 # Licence:     Apache 2.0
 # -------------------------------------------------------------------------------
 
+# TODO 1: for Pecan5R_CR6_CPIStatus.dat read and write are good.
+#    to write c_df.index = c_df.index.map(lambda x: LibDataTransfer.datetime_format(x,3)) then write the file
+# TODO 2: for Pecan5R_CR6_Diagnostic.dat read and write are good, can be mapped without problems
+# TODO 3: for AmeriFluxFormat. Is this is a specific format? Should be as it cause in AmeriFluxFormat?
+# TODO 4: same than TODO 3 for Pecan5R_CR6_Flux_CSFormat.dat, Pecan5R_CR6_Flux_Notes.dat,
+# TODO 5: check Pecan5R_CR6_Time_Series.dat because all is NAN
+
+# TODO ASK: AmeriFluxFormat and/or CSFormat should change NAN for -99999? YES!!!
+
+
+# STATIC Pecan5R_CR6_CPIStatus.dat
+#  to write c_df.index = c_df.index.map(lambda x: LibDataTransfer.datetime_format(x,3)) then write the file
+# STATIC Pecan5R_CR6_Diagnostic.dat
+#
+# STATIC Pecan5R_CR6_Flux_Notes.dat
+#
+# STATIC Pecan5R_CR6_Config_Setting_Notes.dat
+#
+# STATIC Pecan5R_CR6_Const_Table.dat
+#  to write c_df.index = c_df.index.map(lambda x: LibDataTransfer.datetime_format(x,3)) then write the file
+
+# *** Pecan5R_CR6_Flux_AmeriFluxFormat.dat
+# *** Pecan5R_CR6_Flux_CSFormat.dat
+# *** Pecan5R_CR6_Time_Series.dat
+
+
 from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
@@ -18,6 +44,7 @@ import time
 # import matplotlib.pyplot as plt
 
 import consts
+import config
 import systemTools
 import LibDataTransfer
 import Log
@@ -67,8 +94,11 @@ class InfoFile:
     _cleaned_ = False
     hf = False  # high frequency flag
     _cleanDF_ = False
+    rename = True  # option to rename the file to process, good for debugging
+    staticTable = False  # flag to indicate if the table is static or not
+    metaTable = None  # metadata of the table from consts
 
-    def __init__(self, pathFileName, cleanDataFrame=True):
+    def __init__(self, pathFileName, cleanDataFrame=True, rename=True):
         self.statusFile = consts.STATUS_FILE.copy()
         self._cleanDF_ = cleanDataFrame
         start_time = time.time()
@@ -78,13 +108,15 @@ class InfoFile:
         else:
             self.pathFile = pathFileName
         self.pathFile = self.pathFile.resolve()
-        rename = True
+        self.rename = rename
+        # check if file is a L1 file
         if self.pathFile.suffix.lower() == '.csv':
             self.level = 1
-            rename = False
+            self.rename = False
         if self.pathFile.exists():  # check if the file/table exists
+            # check file is TOB | TOA, if TOB then convert it to TOA
             paths = LibDataTransfer.checkAndConvertFile(
-                self.pathFile, rename=rename, log=self.log)  # check if the file is TOB or TOA, if TOB then convert it
+                self.pathFile, rename=self.rename, log=self.log)
             # set the correct paths for TOB, and TOA
             if paths['path'] is not None:
                 self.pathFile = Path(paths['path'])
@@ -104,8 +136,9 @@ class InfoFile:
         if self.statusFile[consts.STATUS_FILE_NOT_EXIST] or self.pathTOA is None:
             return
         # try:
-        if self.pathTOA.suffix.lower() == '.csv':
+        if self.pathTOA.suffix.lower() == '.csv':  # check and set the file level
             self.level = 1
+        ## get the metadata from the file name
         # get the name of the file
         fileName = self.pathTOA.stem
         # get the extension of the file
@@ -141,6 +174,7 @@ class InfoFile:
             self.log.error(f'{self.pathFile} ({self.pathTOA.name}) does not exist or there is some problem with it')
             self.terminate()
             return
+        ## get the metadata from the actual file
         _meta_ = LibDataTransfer.getHeaderFLlineFile(self.pathTOA, self.log)
         self.cs_headers = _meta_['headers']
         self.colNames = LibDataTransfer.getStrippedHeaderLine(self.cs_headers[consts.CS_FILE_HEADER_LINE['FIELDS']])
@@ -161,17 +195,31 @@ class InfoFile:
         self.cs_program = nl[consts.CS_FILE_METADATA['program']]
         self.cs_signature = nl[consts.CS_FILE_METADATA['signature']]
         self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']]
-        self.frequency = consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, consts.FREQ_10HZ)
+        self.metaTable = config.getTable(self.cs_tableName)
+        #self.frequency = consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, consts.FREQ_10HZ)  # not sure if it should be 10HZ, maybe just None
+        #self.frequency = consts.getTableFrequency(self.cs_tableName)
+        self.frequency = self.metaTable['frequency']
         if self.frequency == consts.FREQ_10HZ:
-            self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE_HF
+            #self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE_HF
+            self.timestampFormat = LibDataTransfer.datetime_format_HF  # to be used with df.index.map(timestampFormat)
             self.hf = True
-        else:
-            self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE
+        elif self.frequency == consts.FREQ_STATIC:
+            self.timestampFormat = lambda x: LibDataTransfer.datetime_format(x, 3)  # to be used with df.index.map(timestampFormat)
             self.hf = False
-        self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
+        else:
+            #self.timestampFormat = consts.TIMESTAMP_FORMAT_CS_LINE
+            self.timestampFormat = None  # no need to uses df.index.map(timestampFormat)
+            self.hf = False
+        #self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
+        #self.st_fq = consts.getTableL1FileFrequency(self.cs_tableName)
+        self.st_fq = self.metaTable['l1FileFrequency']
         self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
-        if not (self.cs_tableName in consts.STATIC_TABLES) and _meta_['lineNumCols'] != _meta_['headerNumCols']:
-            self.log.error(f'{self.pathTOA.name} has different number of columns in the header and in the first line. '
+        #if self.cs_tableName in consts.STATIC_TABLES:
+        if self.metaTable['class'] == consts.CLASS_STATIC:
+            self._cleanDF_ = False
+            self.staticTable = True
+        if not (self.staticTable) and _meta_['lineNumCols'] != _meta_['headerNumCols']:
+            self.log.error(f'{self.pathTOA.name} has different number of columns in the header and the first line. '
                            f'The number of columns in the header is {_meta_["headerNumCols"]} and in '
                            f'the first line is {_meta_["lineNumCols"]}. This file is going to be renamed and avoided')
             nf = LibDataTransfer.renameAFileWithDate(self.pathTOA, log=self.log)
@@ -184,6 +232,8 @@ class InfoFile:
         if 'TOA' in self.cs_type:
             self.numberLines = systemTools.rawincount(self.pathTOA) - len(consts.CS_FILE_HEADER_LINE) + 1
         self._setL0paths_()
+
+        # get the actal data from the file
         self.genDataFrame()
 
     # except Exception as e:
@@ -197,12 +247,14 @@ class InfoFile:
         year = str(self.f_creationDT.year)
         month = str(self.f_creationDT.month)
         day = str(self.f_creationDT.day)
-        self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
+        #self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
+        self.st_tableName = self.metaTable['l1FileName']
         fcreatioDT = self.f_creationDT.strftime(consts.TIMESTAMP_FORMAT_FILES)
         filename = f'{self.f_site_r}_{self.cs_model}_{self.st_tableName}_{fcreatioDT}_L0'
         filenameTOA = f'{filename}.{consts.ST_EXT_TOA}'
         filenameTOB = f'{filename}.{consts.ST_EXT_TOB}'
-        folderName = consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName, self.cs_tableName)
+        #folderName = consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName, self.cs_tableName)
+        folderName = self.metaTable['l1FolderName']
         basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName, year, 'Raw_Data')
         self.pathL0TOA = basePath.joinpath(consts.ST_NAME_TOA, month, day, filenameTOA)
         self.pathL0TOB = basePath.joinpath(consts.ST_NAME_TOB, month, day, filenameTOB)
@@ -238,9 +290,10 @@ class InfoFile:
                 filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)}.csv',
                                     dtItem.year])
         # path data structure
-        basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME,
-                                              consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName,
-                                                                                     self.cs_tableName))
+        #basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME,
+        #                                      consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName,
+        #                                                                             self.cs_tableName))
+        basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, self.metaTable['l1FolderName'])
         for item in filenameCSV:
             self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
             # below here is for the new data structure
@@ -295,12 +348,17 @@ class InfoFile:
     def genDataFrame(self):
         self.log.live(f'Generating DataFrame for {self.pathFile.stem}')
         start_time = time.time()
-        self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE) - 1, index_col=0,
-                              na_values=[-99999, "NAN"], names=self.colNames, parse_dates=True, date_format='mixed')
+        # check if the file to read is a static table, if not use this one, else use the other one
+        if self.staticTable:  # self.cs_tableName in consts.STATIC_TABLES:
+            self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE) - 1, index_col=0,
+                                  keep_default_na=False, names=self.colNames, parse_dates=True, date_format='mixed')
+        else:
+            self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE) - 1, index_col=0,
+                                  na_values=[-99999, "NAN"], names=self.colNames, parse_dates=True, date_format='mixed')
         self._cleaned_ = False
-        self.setFragmentation()
+        self.setFragmentation()  # set the fragmentation of the file and set the frequency
         if self._cleanDF_:
-            self.cleanDataFrame()
+            self.cleanDataFrame()  # clean the dataframe by removing the flagged data
         self._setL1paths_()
         end_time = time.time()
         self.log.live(f'DataFrame generated in {end_time - start_time:.2f} seconds from a '
@@ -325,15 +383,21 @@ class InfoFile:
         self.fragmentation = LibDataTransfer.getFragmentation4DF(self.df)
         if self.fragmentation is not None:
             self.fragmentation.index.rename('fragmentation', inplace=True)
-            if consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, None) is not None:
+            #if consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, None) is not None:
+            #    self.frequency = self.fragmentation.index[0]
+            #if consts.TABLES_SPECIFIC_FREQUENCY.get(self.cs_tableName, None) != -1:
+            if self.frequency != -1:
                 self.frequency = self.fragmentation.index[0]
+            #if isinstance(self.frequency, pd.Timedelta):
             self.setStorageFrequency()
+            #else:
+            #    self.st_fq = consts.FREQ_YEARLY
 
     def setStorageFrequency(self, freq=None):
         if freq:
             self.st_fq = freq
         elif self.frequency:
-            if self.frequency < consts.FREQ_1MIN:
+            if isinstance(self.frequency, pd.Timedelta) and self.frequency < consts.FREQ_1MIN:
                 self.st_fq = consts.FREQ_DAILY
             else:
                 self.st_fq = consts.FREQ_YEARLY
@@ -347,7 +411,7 @@ class InfoFile:
         ddf = LibDataTransfer.fuseDataFrame(self.df, freq=self.frequency, group=None, log=self.log)
         self.df = ddf.pop(None)
         self._cleaned_ = True
-        if not (self.cs_tableName in consts.STATIC_TABLES):
+        if not self.staticTable:  # (self.cs_tableName in consts.STATIC_TABLES):
             self.checkData()
         end_time = time.time()
         self.log.live(f'DataFrame cleaned in {end_time - start_time:.2f} seconds')
