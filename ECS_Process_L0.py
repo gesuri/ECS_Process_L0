@@ -82,10 +82,11 @@ def run():
     # process the files
     for file in files:  # for each file in the collect folder
         elapsedTime1 = systemTools.ElapsedTime()
+        log.live(f'>>>>>>>>>>>>>>>>>> {file.name} >>>>>>>>>>>>>>>>>>')
         log.live(f'Processing L0 file: {file.name}')
         l0 = InfoFile.InfoFile(file)  # create the object that read the CS file (file Level 0)
         # from fL0 get the related stored files and load them using InfoFile
-        gDF = LibDataTransfer.fuseDataFrame(l0.df, freq=l0.frequency, group=l0.st_fq)
+        gDF = LibDataTransfer.fuseDataFrame(l0.df, freq=l0.frequency, group=l0.st_fq, log=log)
         i_gDF = list(gDF.keys())
         for fL1 in l0.pathL1:  # for each stored or cloud file related to the current file
             start2 = time.time()
@@ -153,11 +154,12 @@ def run():
                              'beginning of this day')
                     c_df = LibDataTransfer.createFlaggedData(df=c_df, freq=consts.FREQ_10HZ, st_fq=consts.FREQ_DAILY)
                 # the index has a slight difference format
-                c_df.index = c_df.index.map(LibDataTransfer.datetime_format_HF)  # Maybe move to LibDataTransfer.writeDF2csv but need to dectec when uses if it is not HF table
+                ##c_df.index = c_df.index.map(LibDataTransfer.datetime_format_HF)  # Maybe move to LibDataTransfer.writeDF2csv but need to dectec when uses if it is not HF table
             # for RECORD, remove NaN with FLAG and convert to int RECORD column
-            c_df['RECORD'] = c_df['RECORD'].fillna(consts.FLAG).astype(int)
+            ##c_df['RECORD'] = c_df['RECORD'].fillna(consts.FLAG).astype(int)
             # write the data to a csv file that is L1
-            LibDataTransfer.writeDF2csv(pathFile=fL1, dataframe=c_df, header=l0.cs_headers, log=log)
+            LibDataTransfer.writeDF2csv(pathFile=fL1, dataframe=c_df, header=l0.cs_headers,
+                                        indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
             end2 = time.time()
             log.live(f'Total time for file L1: {fL1.name}: {end2 - start2:.2f} seconds')
         # move the L0 files to the corresponding folder
@@ -168,6 +170,7 @@ def run():
             log.debug(f'Moving {l0.pathTOB} to {l0.pathL0TOB}')
             LibDataTransfer.moveAfileWOOW(l0.pathTOB, l0.pathL0TOB)
         log.live(f'Total time for file L0: {file.name} {file.name}: {elapsedTime1.elapsed()}')
+        log.live(f'<<<<<<<<<<<<<<<<< {file.name} <<<<<<<<<<<<<<<<<<<')
 
 
 if __name__ == '__main__':
