@@ -142,9 +142,9 @@ def rawincount(filename):
 def sizeof_fmt(num, suffix="B"):
     for unit in ("", "Ki", "Mi", "Gi", "Ti"):
         if abs(num) < 1024.0:
-            return f"{num:3.1f}{unit}{suffix}"
+            return f"{num:3.1f} {unit}{suffix}"
         num /= 1024.0
-    return f"{num:.1f}Yi{suffix}"
+    return f"{num:.1f} Yi{suffix}"
 
 
 def td_format(td_object):
