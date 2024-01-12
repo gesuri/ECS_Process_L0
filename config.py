@@ -156,7 +156,7 @@ TABLES = {
 
 def getTable(table):
     """ Return the table info """
-    current_table = TABLES['default']
+    current_table = TABLES['default'].copy()
     n_table = TABLES.get(table, TABLES['default'])
     for item in n_table:
         current_table[item] = n_table[item]
