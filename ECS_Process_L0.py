@@ -84,17 +84,22 @@ def run():
         elapsedTime1 = systemTools.ElapsedTime()
         log.live(f'>>>>>>>>>>>>>>>>>> {file.name} >>>>>>>>>>>>>>>>>>')
         log.live(f'Processing L0 file: {file.name}')
-        l0 = InfoFile.InfoFile(file)  # create the object that read the CS file (file Level 0)
-        # from fL0 get the related stored files and load them using InfoFile
+        # create the object that read the CS file (file Level 0) from fL0 get the related stored files and load them
+        # using InfoFile
+        l0 = InfoFile.InfoFile(file)
+        # the l0 dataframe is cleaned (if the frequency is correct and not an static table) and organized by the
+        # storage frequency
         gDF = LibDataTransfer.fuseDataFrame(l0.df, freq=l0.frequency, group=l0.st_fq, log=log)
+        # created a list based on the storage frequency. If days, for ts, then each day is a key.
         i_gDF = list(gDF.keys())
-        for fL1 in l0.pathL1:  # for each stored or cloud file related to the current file
-            start2 = time.time()
-            createNewFile = False
+        for fL1 in l0.pathL1:  # for each stored or cloud file (L1 file) related to the current file, L0 file
+            start2 = time.time()  # keep track of the time for each L1 file
+            createNewFile = False  # flag to create a new file
             log.live(f'For {file.name}, processing L1 {fL1.name}')
-            l1 = InfoFile.InfoFile(fL1)
-            idx = i_gDF.pop(0)
-            c_df = gDF.pop(idx)
+            l1 = InfoFile.InfoFile(fL1)  # get the info for the L1 file
+            idx = i_gDF.pop(0)  # get the first key, year or day, of the list that should be the oldest L1 file
+            c_df = gDF.pop(idx)  # get the dataframe for the oldest L1 file that is the key idx
+            # start the process to check the current L0 to be appended to the L1 file
             if l1.ok():  # there is available L1 file for the current file (the L1 file exists and has data)
                 # compare headers of the current with any of the stored files
                 chFrom = list(set(l1.cs_headers) - set(l0.cs_headers))
@@ -132,6 +137,7 @@ def run():
                     log.info(f'For site {l0.f_site}, the table {l0.cs_tableName} there is a L1 file named: '
                              f'{l1.pathFile.name}')
                 # this section is for the header that is the same from the current to the stored file
+                # this line add the current data to the stored file, in other words, L0 is appended to L1
                 c_df = LibDataTransfer.fuseDataFrame(c_df, l1.df, freq=l0.frequency, group=l0.st_fq)
                 if len(c_df) > 1:
                     log.error(f'For site {l0.f_site}, the table {l0.cs_tableName} on files {l0.pathFile.name} and '
