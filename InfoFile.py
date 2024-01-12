@@ -10,14 +10,11 @@
 # Licence:     Apache 2.0
 # -------------------------------------------------------------------------------
 
-# TODO 1: for Pecan5R_CR6_CPIStatus.dat read and write are good.
-#    to write c_df.index = c_df.index.map(lambda x: LibDataTransfer.datetime_format(x,3)) then write the file
-# TODO 2: for Pecan5R_CR6_Diagnostic.dat read and write are good, can be mapped without problems
-# TODO 3: for AmeriFluxFormat. Is this is a specific format? Should be as it cause in AmeriFluxFormat?
-# TODO 4: same than TODO 3 for Pecan5R_CR6_Flux_CSFormat.dat, Pecan5R_CR6_Flux_Notes.dat,
-# TODO 5: check Pecan5R_CR6_Time_Series.dat because all is NAN
+# when working with static tables, the new data will be appended to the end of the L1 file, so if the same data is
+# added, there will be duplicated data.
 
-# TODO ASK: AmeriFluxFormat and/or CSFormat should change NAN for -99999? YES!!!
+# TODO X: check when static table a float that has no decimal print one zero decimal. 0.0 should be 0
+
 
 
 # STATIC Pecan5R_CR6_CPIStatus.dat
