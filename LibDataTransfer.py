@@ -194,11 +194,15 @@ def getCSFromLine(line):
     return info
 
 
-def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
+def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last'):
     """ Return a list of dataframes with the data of df1 and df2 sorted and without duplicated index and with the freq
      Also, it will group the data by the group. If group is 'D' it will group by day or 'Y' by year """
     start_time = time.time()
-
+    dynamic = True
+    if freq is None or freq == -1:
+        dynamic = False
+# TODO: check if the table or the df 1 or 2 is static or dynamic. the default should be dynamic, if static, then
+#  should not check for line 214, 218, 219, 226, 227?, 228 is detecting if static already.
     df_cycles = {}
     if df2 is not None:
         if not df1.columns.equals(df2.columns):
@@ -209,24 +213,33 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
             else:
                 print(msg)
             return df_cycles
-    # remove the -9999
-    df_1 = df1.replace(consts.FLAG, np.nan)
-    if df2 is not None:
-        df_2 = df2.replace(consts.FLAG, np.nan)
-    # remove the nan
-    df_1 = df_1.dropna(thresh=(df1.shape[1] - 2)*consts.MIN_PCT_DATA)
-    if df2 is not None:
-        df_2 = df_2.dropna(thresh=(df2.shape[1] - 2)*consts.MIN_PCT_DATA)
+    if dynamic:
+        # remove the -9999
+        df_1 = df1.replace(consts.FLAG, np.nan)
+        if df2 is not None:
+            df_2 = df2.replace(consts.FLAG, np.nan)
+        else:
+            df_2 = None
+        # remove the nan
+        df_1 = df_1.dropna(thresh=(df1.shape[1] - 2)*consts.MIN_PCT_DATA)
+        if df2 is not None:
+            df_2 = df_2.dropna(thresh=(df2.shape[1] - 2)*consts.MIN_PCT_DATA)
+    else:
+        df_1 = df1
+        df_2 = df2
     # concat the dataframes
     if df2 is not None:
         df_con = pd.concat([df_1, df_2])
     else:
         df_con = df_1
-    df_cle = df_con[~df_con.index.duplicated()]  # remove the duplicated from index
+    #if dynamic:
+    df_cle = df_con[~df_con.index.duplicated(keep=keep)]  # remove the duplicated from index
     df_cle = df_cle.sort_index()  # sort the index
-    if not (freq is None):
+    if dynamic:
         #freq = getFreq4DF(df1)
         df_cle = df_cle.asfreq(freq)  # set the frequency, this missing data will be filled with nan
+    #else:
+    #    df_cle = df_con
     if group in ['D', 'Y']:  # return a dict of dataframes
         for name, gr in df_cle.groupby(pd.Grouper(freq=group)):
             if group == 'D':
@@ -237,7 +250,7 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None):
     else:  # return just the dataframe
         df_cycles[group] = df_cle
         return df_cycles
-    msg = f'<LibDataTransfer> Fused dataframe in {time.time() - start_time} seconds'
+    msg = f'<LibDataTransfer> Fused dataframe in {time.time() - start_time:.2f} seconds'
     if log:
         log.info(msg)
     else:
@@ -279,12 +292,19 @@ def boolean_format(value):
     return 'TRUE' if value else 'FALSE'
 
 
+def float_format(value, numDec=3):
+    """ Return the float in the format of the CS logger """
+    return f'{value:.{numDec}f}'.rstrip('0').rstrip('.') if '.' in str(value) else str(value)
+
+
 def correct_format(df):
     """ Return the dataframe with the correct format for the CS logger """
     #df.index = df.index.map(datetime_format_HF)  # correct the index format
     for col in df.columns:
         if df[col].dtype == bool:  # in case it is a boolean, set the correct format
             df[col] = df[col].apply(boolean_format)
+        #if df[col].dtype == float:
+        #    df[col] = df[col].apply(lambda x: float_format(x, 5))
         #elif
     #return df
 
