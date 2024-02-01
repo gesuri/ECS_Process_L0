@@ -13,24 +13,22 @@
 # when working with static tables, the new data will be appended to the end of the L1 file, so if the same data is
 # added, there will be duplicated data.
 
-# TODO X: check when static table a float that has no decimal print one zero decimal. 0.0 should be 0
-
-
-
-# STATIC Pecan5R_CR6_CPIStatus.dat
-#  to write c_df.index = c_df.index.map(lambda x: LibDataTransfer.datetime_format(x,3)) then write the file
-# STATIC Pecan5R_CR6_Diagnostic.dat
-#
-# STATIC Pecan5R_CR6_Flux_Notes.dat
-#
-# STATIC Pecan5R_CR6_Config_Setting_Notes.dat
-#
-# STATIC Pecan5R_CR6_Const_Table.dat
-#  to write c_df.index = c_df.index.map(lambda x: LibDataTransfer.datetime_format(x,3)) then write the file
-
-# *** Pecan5R_CR6_Flux_AmeriFluxFormat.dat
-# *** Pecan5R_CR6_Flux_CSFormat.dat
-# *** Pecan5R_CR6_Time_Series.dat
+# *TODO but not needed X: check when static table a float that has no decimal print one zero decimal. 0.0 should be 0
+# *TODO but not needed 1: for RedLake the Biomet data has multiple values that are int but pandas take it as float.
+#    option 1: leave it as it
+#    option 2: change the type of the column to string and use float_format(x, 1) to write the file
+# *TODO but not needed 2: for RedLake the BiometConstants table has a different format for the microseconds in the
+#   timestamp
+#    option 1: leave it as it
+#    option 2: add a new configuration on config.py for table where we can change the number of decimals to keep
+# *TODO but not needed 3: for RedLake the BiometConstants some of the float format. the original is using E-notation
+#   and write files are not
+#    example: 2745E+09 to 3274500000.0
+# *TODO but not needed 4: for RedLake the VariableChecks table has ints and pandas take it as float. The output are 0.0
+#   values
+# TODO 6 DONE: change f_datalogger to project. Also, check where consts.ECS_NAME is used and change it to project but
+#   not needed
+# TODO 7: add in config or consts the main_site only if main site is needed
 
 
 from pathlib import Path
@@ -54,7 +52,8 @@ class InfoFile:
     f_ext = None  # files extension
     f_site = None  # site name from file name
     f_site_r = None  # reals site name from file name, got from consts.SITES_4_FILE
-    f_datalogger = None  # datalogger name from file name
+    f_project = None  # datalogger name from file name
+    f_tableName = None  # table name from file name
     f_nameDT = None  # datetime object from file name
     f_creationDT = None  # datetime object from file creation
     f_size = None  # size of the file
@@ -145,9 +144,18 @@ class InfoFile:
         # get the date and time of the file
         self.f_site = fileNameSplit[consts.CS_FILE_NAME_SITE]
         self.f_site_r = consts.SITE_4_FILE.get(self.f_site, self.f_site)
-        self.f_datalogger = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
+        self.f_project = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
+        currentYear = datetime.now().year
+        if len(fileNameSplit) > 3:
+            self.f_tableName = fileName[len(self.f_site) + len(self.f_project) + 2:-(len('_'.join(fileNameSplit[-2:])) + 1)]
+        else:
+            self.f_tableName = fileNameSplit[consts.CS_FILE_NAME_TABLE]
+        logName = f'{self.f_site}_{self.f_project}_{self.f_tableName}_{currentYear}.log'
         # get the tentative path for the log file
-        self.pathLog = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, 'logs', 'log.txt')
+        if consts.FILE_STRUCTURE_VERSION == 1:
+            self.pathLog = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, 'logs', logName)
+        elif consts.FILE_STRUCTURE_VERSION == 2:
+            self.pathLog = consts.PATH_CLOUD.joinpath(self.f_site_r, self.f_project, 'logs', logName)
         self.log = Log.Log(path=self.pathLog)
         # check if the fileNameSplit has more than 3 elements and if yes, get the date and time. Usually must be yes
         if len(fileNameSplit) > 3:
@@ -210,7 +218,7 @@ class InfoFile:
         #self.st_fq = consts.TABLES_STORAGE_FREQUENCY.get(self.cs_tableName, consts.FREQ_YEARLY)
         #self.st_fq = consts.getTableL1FileFrequency(self.cs_tableName)
         self.st_fq = self.metaTable['l1FileFrequency']
-        self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', 'log.txt')
+        self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', logName)
         #if self.cs_tableName in consts.STATIC_TABLES:
         if self.metaTable['class'] == consts.CLASS_STATIC:
             self._cleanDF_ = False
@@ -239,78 +247,94 @@ class InfoFile:
     #    self.statusFile[consts.STATUS_FILE_EXCEPTION_ERROR] = True
     #    self.terminate()
 
-    def _setL0paths_(self):
+    def _setL0paths_(self, version=consts.FILE_STRUCTURE_VERSION):
         # file paths
         year = str(self.f_creationDT.year)
         month = str(self.f_creationDT.month)
-        day = str(self.f_creationDT.day)
-        #self.st_tableName = consts.TABLES_STORAGE_NAME.get(self.cs_tableName, self.cs_tableName)
-        self.st_tableName = self.metaTable['l1FileName']
+        day = str(self.f_creationDT.strftime('%d'))
+        self.st_tableName = self.metaTable[config.L1_FILE_NAME]
         fcreatioDT = self.f_creationDT.strftime(consts.TIMESTAMP_FORMAT_FILES)
-        filename = f'{self.f_site_r}_{self.cs_model}_{self.st_tableName}_{fcreatioDT}_L0'
+
+        folderName = self.metaTable[config.L1_FOLDER_NAME]
+        #filename = f'{self.f_site_r}_{self.cs_model}_{self.st_tableName}_{fcreatioDT}_{consts.L0}'
+        filename = f'{self.f_site_r}_{self.f_project}_{self.st_tableName}_{consts.L0}_{fcreatioDT}'
         filenameTOA = f'{filename}.{consts.ST_EXT_TOA}'
         filenameTOB = f'{filename}.{consts.ST_EXT_TOB}'
-        #folderName = consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName, self.cs_tableName)
-        folderName = self.metaTable['l1FolderName']
-        basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName, year, 'Raw_Data')
-        self.pathL0TOA = basePath.joinpath(consts.ST_NAME_TOA, month, day, filenameTOA)
-        self.pathL0TOB = basePath.joinpath(consts.ST_NAME_TOB, month, day, filenameTOB)
-        # below here is for the new data structure
-        # *********
-        # basePath = consts.PATH_CLOUD.joinpath(self.f_site, consts.ECS_NAME, 'L0', self.st_tableName)
-        # self.pathL0TOA = basePath.joinpath(year, month, day, filenameTOA)
-        # self.pathL0TOB = basePath.joinpath(year, month, day, filenameTOB)
-        # *********
+        project = self.f_project
 
-    def _setL1paths_(self):
-        if self.df is None:  # TODO: check if there is at least one data in the df
+        if version == 1:
+            basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName, year, 'Raw_Data')
+            self.pathL0TOA = basePath.joinpath(consts.ST_NAME_TOA, month, day, filenameTOA)
+            if self.metaTable[config.SAVE_L0_TOB]:
+                self.pathL0TOB = basePath.joinpath(consts.ST_NAME_TOB, month, day, filenameTOB)
+            else:
+                self.pathL0TOB = None
+        elif version == 2:
+            monthAbbr = self.f_creationDT.strftime('%b')
+            basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, project, consts.L0, folderName, year, monthAbbr, day)
+            self.pathL0TOA = basePath.joinpath(filenameTOA)
+            if self.metaTable[config.SAVE_L0_TOB]:
+                self.pathL0TOB = basePath.joinpath(filenameTOB)
+            else:
+                self.pathL0TOB = None
+
+    def _setL1paths_(self, version=consts.FILE_STRUCTURE_VERSION):
+        if self.df is None or len(self.df) == 0:
             self.log.warn(f'No dataframe available, please run genDataFrame()')
             return
         try:
             self.firstLineDT = self.df.index[0]
             self.lastLineDT = self.df.index[-1]
         except Exception as e:
-            self.log.error(f'in _setL1paths_ when try to read from df the first and last line {e}')
+            self.log.error(f'in _setL1paths_ when try to read from df the first and last line, looks like no data {e}')
             self.log.error(f'{self.df}')
             return
         filenameCSV = []
         self.pathL1 = []
+        tableName = self.metaTable[config.L1_FILE_NAME]
+        folderName = self.metaTable[config.L1_FOLDER_NAME]
+        project = self.f_project
+        # file name for yearly data to store
         if self.st_fq == consts.FREQ_YEARLY:
-            for year in range(self.firstLineDT.year, self.lastLineDT.year + 1):
-                filenameCSV.append([f'dataL1_{self.st_tableName}_{year}.csv', year])
+            years = range(self.firstLineDT.year, self.lastLineDT.year + 1)
+            if version == 1:
+                for year in years:
+                    #filenameCSV.append([f'data{consts.L1}_{tableName}_{year}.csv', year])
+                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
+            elif version == 2:
+                for year in years:
+                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
+        # file name for high frequency data to store, daily
         elif self.st_fq == consts.FREQ_DAILY:
             fdt = self.firstLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
             ldt = self.lastLineDT.replace(hour=23, minute=59)
-            dtDiff = ldt - fdt
-            for item in range(dtDiff.days + 1):
-                dtItem = fdt + timedelta(days=item)
-                filenameCSV.append([f'dataL1_{self.st_tableName}_{dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)}.csv',
-                                    dtItem.year])
+            days = range((ldt - fdt).days + 1)
+            if version == 1:
+                for item in days:
+                    dtItem = fdt + timedelta(days=item)
+                    dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
+                    #filenameCSV.append([f'data{consts.L1}_{self.st_tableName}_{dtItemStr}.csv', dtItem.year])
+                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
+                                        dtItem.year])
+            elif version == 2:
+                for item in days:
+                    dtItem = fdt + timedelta(days=item)
+                    dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
+                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
+                                        dtItem.year])
         # path data structure
-        #basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME,
-        #                                      consts.TABLES_STORAGE_FOLDER_NAMES.get(self.cs_tableName,
-        #                                                                             self.cs_tableName))
-        basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, self.metaTable['l1FolderName'])
-        for item in filenameCSV:
-            self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
-            # below here is for the new data structure
-            # *********
-            # if self.st_fq == consts.FREQ_YEARLY:
-            #     folderFq = str(item[1])
-            # else:
-            #     folderFq = ''
-            # self.pathL1.append(basePath.joinpath('L1', self.st_tableName, folderFq, item[0]))
-            # *********
-        # if self._cleaned_:
-        #     group: DataFrame
-        #     name: datetime
-        #     for name, group in self.df.groupby(pd.Grouper(freq=self.st_fq)):
-        #         group = group.dropna(thresh=(group.shape[1] - 2)*consts.MIN_PCT_DATA)
-        #         if len(group) == 0:
-        #             item = basePath.joinpath(str(name.year), 'Raw_Data', 'ASCII',
-        #                                      f'dataL1_{self.st_tableName}_{name.strftime(dtStrF)}{hmChars}.csv')
-        #             #self.log.live(f'Going to remove the file {item}')
-        #             self.pathL1.remove(item)
+        if version == 1:
+            basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName)
+            for item in filenameCSV:
+                self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
+        elif version == 2:
+            basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, project, consts.L1, folderName)
+            if self.st_fq == consts.FREQ_YEARLY:
+                for item in filenameCSV:
+                    self.pathL1.append(basePath.joinpath(item[0]))
+            elif self.st_fq == consts.FREQ_DAILY:
+                for item in filenameCSV:
+                    self.pathL1.append(basePath.joinpath(str(item[1]), item[0]))
 
     def __str__(self):
         return f'{self.pathFile} ({self.pathTOA.name})'

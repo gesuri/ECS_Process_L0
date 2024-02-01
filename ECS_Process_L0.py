@@ -185,5 +185,5 @@ if __name__ == '__main__':
     run()
     log.info(f'Total time for all the files: {elapsedTime.elapsed()}')
 
-# TODO: check other sites. 1. Pecan, 2. RedLake
+# TODO: check other sites. 2. RedLake
 #

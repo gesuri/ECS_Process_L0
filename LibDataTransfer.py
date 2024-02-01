@@ -85,7 +85,7 @@ def getStrippedHeaderLine(line):
     return [field.strip('"') for field in fields]
 
 
-def getHeaderFLlineFile(pathFileName, log=None):  # TODO: check if this function is working as expected
+def getHeaderFLlineFile(pathFileName, log=None):
     """ return a dict with the 'headers' that are the first lines
      'firstLineDT', the first line timestamp od data and the 'lastLine' timestamp of data """
     meta = {'headers': [], 'firstLineDT': None, 'lastLineDT': None, 'headerNumCols': 0, 'lineNumCols': 0}
