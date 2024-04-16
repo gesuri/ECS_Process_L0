@@ -12,7 +12,7 @@ import LibDataTransfer
 import consts
 import Log
 import systemTools
-
+import pandas as pd
 
 
 
@@ -121,10 +121,69 @@ def writeDF2csv(pathFile, dataframe, header):
         dataframe.to_csv(f, header=False, index=True, na_rep=consts.FLAG, lineterminator='\n', quoting=QUOTE_NONNUMERIC)
 
 
+def remove_trailing_zeros(timestamp_string):
+    parts = timestamp_string.split('.')
+    if len(parts) == 2:
+        integer_part, fractional_part = parts
+        fractional_part = fractional_part.rstrip('0')
+        if fractional_part:
+            result_string = f"{integer_part}.{fractional_part}"
+        else:
+            result_string = integer_part
+    else:
+        result_string = timestamp_string
+    return result_string
+
+
+def datetime_format(dt, numDec=1):
+    """ Return the datetime in the format of the CS logger """
+    print(f'* {dt.strftime("%Y-%m-%d %H:%M:%S.%f")}')
+    if numDec == 0:
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    dec_sec = dt.second+dt.microsecond/1e6
+    format_spec = f'04.{numDec}f'
+    if dec_sec % 1 == 0:
+        for_sec = f'{int(dec_sec):02.0f}'
+    else:
+        for_sec = f'{dec_sec:{format_spec}}'#.rstrip('0')
+        print(f'   for_sec={for_sec}')
+        for_sec = for_sec.rstrip('0')
+        print(f'   for_sec={for_sec}')
+    return dt.strftime('%Y-%m-%d %H:%M:') + for_sec
+
+
+def datetime_format_2(dt, numDec=1):
+    """ Return the datetime in the format of the CS logger """
+    parts = dt.strftime("%Y-%m-%d %H:%M:%S.%f").split('.')
+    date_part = parts[0]
+    fractional_part = ''
+    if len(parts) == 2:
+        date_part, fractional_part = parts
+        fractional_part = fractional_part[:numDec]
+        fractional_part = fractional_part.rstrip('0')
+    if fractional_part:
+        result_string = f"{date_part}.{fractional_part}"
+    else:
+        result_string = date_part
+    return result_string
+
+
+def datetime_format_HF(dt):
+    """ Return the datetime in the format of the CS logger for high frequency data like ts_data """
+    dec_sec = dt.second+dt.microsecond/1e6
+    for_sec = f'{int(dec_sec):02.0f}' if dec_sec%1 == 0 else f'{dec_sec:04.1f}'
+    return dt.strftime('%Y-%m-%d %H:%M:') + for_sec
+
+
 if __name__ == '__main__':
-    from pathlib import Path
-    import InfoFile
-    p_csv = Path(r'c:\temp\Collected\Bahada_CR3000_ts_data_2_test.csv')
-    p_dat = Path(r'c:\temp\Collected\Bahada_CR3000_ts_data_2_test_20231016_184040.dat')
-    info = InfoFile.InfoFile(p_dat)
-    writeDF2csv(p_csv, info.df, info.cs_headers)
+    #from pathlib import Path
+    #import InfoFile
+    #p_csv = Path(r'c:\temp\Collected\Bahada_CR3000_ts_data_2_test.csv')
+    #p_dat = Path(r'c:\temp\Collected\Bahada_CR3000_ts_data_2_test_20231016_184040.dat')
+    #info = InfoFile.InfoFile(p_dat)
+    #writeDF2csv(p_csv, info.df, info.cs_headers)
+    #a = remove_trailing_zeros('2023-10-16 18:40:40.00')
+    dt = pd.to_datetime('2023-10-16 18:23:01.0109999')
+    for item in range(0, 5):
+        print(f'dec={item}, {datetime_format_2(dt, item)}')
+    print(datetime_format_HF(dt))

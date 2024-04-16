@@ -1,5 +1,6 @@
 import consts
 import LibDataTransfer
+from pandas import DateOffset
 
 DEFAULT = 'default'
 L1_FOLDER_NAME = 'l1FolderName'
@@ -13,7 +14,9 @@ ARCHIVE_AFTER = 'archiveAfter'
 NAN_VALUE = 'nanValue'
 INDEX_MAP_FUNC = 'indexMapFunc'
 COLS_2_PLOT = 'cols2Plot'
+TIME_2_PLOT = 'time2Plot'
 PROJECT = 'project'
+
 
 # Here is the definition of the tables. If you don't know what tables are of if there is a new table, the system will
 # try to guess the best configuration for the table. If you know the table, you can add the table here and the system
@@ -42,6 +45,8 @@ TABLES = {
         INDEX_MAP_FUNC: None,
         # column names to plot, eg. ["panel_temp_Avg", "batt_volt_Avg"]
         COLS_2_PLOT: [],
+        # time to plot, the time should be a pandas DateOffset, eg. pd.DateOffset(days=30) for 30 days
+        TIME_2_PLOT: DateOffset(days=30)
         # project that the table belongs to, eg. ['ECS_AboveCanopy']
         #PROJECT: [consts.ECS_NAME],
     },

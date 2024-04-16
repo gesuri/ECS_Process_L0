@@ -45,7 +45,7 @@ else:  # development version
     PATH_HARVESTED_DATA = Path(r'C:/temp/Collected/')  # Where LoggerNet save the data
     PATH_WORKING_DATA = Path(r'C:/temp/LatestData')  # Where the data is moved to temporary processed
     #PATH_CLOUD = Path(r'C:/temp/Bahada_test')  # SharePoint/Data/
-    PATH_CLOUD = Path(r'C:/temp/data1')  # SharePoint/Data/
+    PATH_CLOUD = Path(r'C:/temp/data2')  # SharePoint/Data/
 
 PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
 PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
@@ -72,7 +72,7 @@ CS_FILE_NAME_DATALOGGER = 1  # File name info: datalogger name
 CS_FILE_NAME_TABLE = 2  # File name info: table name
 
 # File structure version
-FILE_STRUCTURE_VERSION = 1  # version of the file structure. 1 for old version, 2 for new version
+FILE_STRUCTURE_VERSION = 2  # version of the file structure. 1 for old version, 2 for new version
 
 # Abbrebiation for data level
 L0 = 'L0'  # Level 0 data
