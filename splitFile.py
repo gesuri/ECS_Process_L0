@@ -47,10 +47,10 @@ def renameAFileWithDate(pathFile):
         
         
 def splitFile(filePath, numLines):
-    filePath = renameAFileWithDate(filePath)
+    #filePath = renameAFileWithDate(filePath)
     lines_per_file = numLines
     smallfile = None
-    numF = -1
+    numF = 0
     with open(filePath) as bigfile:
         head = [next(bigfile) for _ in range(4)]
         for lineno, line in enumerate(bigfile):
@@ -66,6 +66,6 @@ def splitFile(filePath, numLines):
             smallfile.write(line)
         if smallfile:
             smallfile.close()
-            renameAFileWithDate(small_filename)
+            #renameAFileWithDate(small_filename)
             
 splitFile(b, 5853226)
