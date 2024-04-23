@@ -42,10 +42,10 @@ if not dev:  # production version
     PATH_CLOUD = Path(r'C:/Users/CZO_data/OneDrive - University of Texas at El Paso/Data/')  # Where the data is moved to permanent storage
 else:  # development version
     # Paths
-    PATH_HARVESTED_DATA = Path(r'C:/temp/Collected/')  # Where LoggerNet save the data
-    PATH_WORKING_DATA = Path(r'C:/temp/LatestData')  # Where the data is moved to temporary processed
+    PATH_HARVESTED_DATA = Path(r'E:/temp/Collected/')  # Where LoggerNet save the data
+    PATH_WORKING_DATA = Path(r'E:/Data/LatestData')  # Where the data is moved to temporary processed
     #PATH_CLOUD = Path(r'C:/temp/Bahada_test')  # SharePoint/Data/
-    PATH_CLOUD = Path(r'C:/temp/data2')  # SharePoint/Data/
+    PATH_CLOUD = Path(r'E:/Data/')  # SharePoint/Data/
 
 PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
 PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
@@ -92,7 +92,8 @@ TIMESTAMP_FORMAT_YEARLY = '%Y'
 # table file storage frequency
 FREQ_YEARLY = 'Y'  # yearly frequency. in pandas freq=Y
 FREQ_DAILY = 'D'  # daily frequency. in pandas freq='D'
-FREQ_30MIN = pd.Timedelta(minutes=30)  #'30min'  # 30 min frequency in pandas freq='30T' or freq='30min'
+FREQ_30MIN = pd.Timedelta(minutes=30)  # '30min'  # 30 min frequency in pandas freq='30T' or freq='30min'
+FREQ_2HZ = pd.Timedelta(seconds=0.5)  # '500L'  # 2 Hz frequency. in pandas freq='500L'
 FREQ_1MIN = pd.Timedelta(minutes=1)  # '1min'  # 1 min frequency. in pandas freq='T' or freq='min'
 FREQ_10HZ = pd.Timedelta(seconds=0.1)  # '100L'  # 10 Hz frequency. in pandas freq='100L'
 
@@ -158,7 +159,7 @@ CLASS_STATIC = 'static'  # static table
 CLASS_DYNAMIC = 'dynamic'  # dynamic table
 DEFAULT_L1_NAME_POSTFIX = TIMESTAMP_FORMAT_YEARLY  # default name postfix for L1 files
 DEFAULT_FREQUENCY = FREQ_30MIN  # default frequency
-DEFAULT_L1_FILE_FREQUENCY = FREQ_YEARLY  # default frequency for L1 files
+DEFAULT_L1_FILE_FREQUENCY = -1  # FREQ_YEARLY  # default frequency for L1 files
 DEFAULT_CLASS = CLASS_DYNAMIC  # default class
 DEFAULT_COLS_2_PLOT = []  # default columns to plot
 FREQ_STATIC = -1  # default frequency for static tables

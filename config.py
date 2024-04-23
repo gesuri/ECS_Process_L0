@@ -90,7 +90,7 @@ TABLES = {
         L1_FOLDER_NAME: 'SoilSensor_CS650',
         L1_FILE_NAME: 'Soil',
         #'l1NamePostfix': consts.TIMESTAMP_FORMAT_YEARLY,
-        FREQUENCY: consts.FREQ_1MIN,
+        #FREQUENCY: consts.FREQ_1MIN,
         #'l1FileFrequency': consts.FREQ_YEARLY,
         #'class': consts.CLASS_DYNAMIC,
         #'saveL0TOB': consts.DEFAULT_SAVE_L0_TOB,
@@ -110,16 +110,9 @@ TABLES = {
         COLS_2_PLOT: ["CO2", "H2O", "t_hmp"],
     },
     # Pecan5R
-    'Config_Setting_Notes': {
-        #'l1FolderName': 'Config_Setting_Notes',
-        #'l1FileName': 'Config_Setting_Notes',
-        #'l1NamePostfix': consts.TIMESTAMP_FORMAT_YEARLY,
+    'Config_Setting_Notes': {  ## TO REMOVE
         FREQUENCY: consts.FREQ_STATIC,
-        #'l1FileFrequency': consts.FREQ_YEARLY,
         CLASS: consts.CLASS_STATIC,
-        #'saveL0TOB': consts.DEFAULT_SAVE_L0_TOB,
-        #'archiveAfter': consts.DEFAULT_ARCHIVE_AFTER,
-        #'cols2Plot': [],
     },
     'Const_Table': {
         #'l1FolderName': 'Const_Table',
@@ -131,7 +124,6 @@ TABLES = {
         #'saveL0TOB': consts.DEFAULT_SAVE_L0_TOB,
         #'archiveAfter': consts.DEFAULT_ARCHIVE_AFTER,
         INDEX_MAP_FUNC: lambda x: LibDataTransfer.datetime_format(x, 3),
-        #'cols2Plot': [],
     },
     'CPIStatus': {
         #'l1FolderName': 'CPIStatus',
@@ -170,26 +162,59 @@ TABLES = {
         FREQUENCY: consts.FREQ_10HZ,
         L1_NAME_POSTFIX: consts.TIMESTAMP_FORMAT_DAILY,
         L1_FILE_FREQUENCY: consts.FREQ_DAILY,
+        INDEX_MAP_FUNC: LibDataTransfer.datetime_format_HF,
     },
-    'System_Operatn_Notes': {
+    'System_Operatn_Notes': {  ## TO REMOVE
+        FREQUENCY: consts.FREQ_STATIC,
+        CLASS: consts.CLASS_STATIC,
+    },
+    'IntAvg': {
+        L1_FOLDER_NAME: 'IntAvg',
+        L1_FILE_NAME: 'IntAvg',
+    },
+    'message_log': {
+        FREQUENCY: consts.FREQ_STATIC,
+        CLASS: consts.CLASS_STATIC,
+    },
+    'RawData': {
+        L1_FOLDER_NAME: 'RawData',
+        L1_FILE_NAME: 'RawData',
+        L1_NAME_POSTFIX: consts.TIMESTAMP_FORMAT_DAILY,
+        FREQUENCY: consts.FREQ_2HZ,
+        L1_FILE_FREQUENCY: consts.FREQ_DAILY,
+        INDEX_MAP_FUNC: LibDataTransfer.datetime_format_HF,
+    },
+    'SiteAvg': {
+        'l1NamePostfix': consts.TIMESTAMP_FORMAT_YEARLY,
+        'l1FileFrequency': consts.FREQ_YEARLY,
+    },
+    'TimeInfo': {
         FREQUENCY: consts.FREQ_STATIC,
         CLASS: consts.CLASS_STATIC,
     },
     # RedLake
-    'BiometConstants': {
-        FREQUENCY: consts.FREQ_STATIC,
-        CLASS: consts.CLASS_STATIC,
-    },
+    #'BiometConstants': {  ## TO REMOVE
+    #    FREQUENCY: consts.FREQ_STATIC,
+    #    CLASS: consts.CLASS_STATIC,
+    #},
+    #'Biomet': {
+    #    L1_FOLDER_NAME: 'Biomet',
+    #    L1_FILE_NAME: 'Biomet',
+    #},
+    #'VariableChecks': {
+    #    L1_FOLDER_NAME: 'VariableChecks',
+    #    L1_FILE_NAME: 'VariableChecks',
+    #},
 }
 
 
 def getTable(table):
     """ Return the table info """
-    current_table = TABLES['default'].copy()
-    n_table = TABLES.get(table, TABLES['default'])
+    current_table = TABLES[DEFAULT].copy()
+    n_table = TABLES.get(table, TABLES[DEFAULT])
     for item in n_table:
         current_table[item] = n_table[item]
-    if current_table['l1FolderName'] == 'default':
-        current_table['l1FolderName'] = table
-        current_table['l1FileName'] = table
+    if current_table[L1_FOLDER_NAME] == DEFAULT:
+        current_table[L1_FOLDER_NAME] = table
+        current_table[L1_FILE_NAME] = table
     return current_table

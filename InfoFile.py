@@ -204,7 +204,7 @@ class InfoFile:
         self.cs_signature = nl[consts.CS_FILE_METADATA['signature']]
         self.cs_tableName = nl[consts.CS_FILE_METADATA['tableName']]
         self.metaTable = config.getTable(self.cs_tableName)
-        self.frequency = self.metaTable['frequency']
+        self.frequency = self.metaTable[config.FREQUENCY]  # 'frequency']
         if self.frequency == consts.FREQ_10HZ:
             self.timestampFormat = LibDataTransfer.datetime_format_HF  # to be used with df.index.map(timestampFormat)
             self.hf = True
@@ -214,9 +214,9 @@ class InfoFile:
         else:
             self.timestampFormat = None  # no need to uses df.index.map(timestampFormat)
             self.hf = False
-        self.st_fq = self.metaTable['l1FileFrequency']
+        self.st_fq = self.metaTable[config.L1_FILE_FREQUENCY]
         self.pathLog = self.pathLog.parent.parent.joinpath(self.cs_tableName, 'logs', logName)
-        if self.metaTable['class'] == consts.CLASS_STATIC:
+        if self.metaTable[config.CLASS] == consts.CLASS_STATIC:
             self._cleanDF_ = False
             self.staticTable = True
         if not (self.staticTable) and _meta_['lineNumCols'] != _meta_['headerNumCols']:
@@ -404,11 +404,14 @@ class InfoFile:
     def setStorageFrequency(self, freq=None):
         if freq:
             self.st_fq = freq
+        elif self.metaTable[config.L1_FILE_FREQUENCY] != consts.DEFAULT_L1_FILE_FREQUENCY:
+            self.st_fq = self.metaTable[config.L1_FILE_FREQUENCY]
         elif self.frequency:
             if isinstance(self.frequency, pd.Timedelta) and self.frequency < consts.FREQ_1MIN:
                 self.st_fq = consts.FREQ_DAILY
             else:
                 self.st_fq = consts.FREQ_YEARLY
+        return self.st_fq
 
     def cleanDataFrame(self):
         if self.df is None or self.df is False:
