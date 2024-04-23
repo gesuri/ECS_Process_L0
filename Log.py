@@ -68,6 +68,9 @@ from sys import argv
 from time import localtime
 from datetime import datetime, timedelta
 from pathlib import Path
+from colorama import just_fix_windows_console
+
+just_fix_windows_console()
 
 TIMESTAMP_FORMAT = '%Y%m%d_%H%M%S'
 
