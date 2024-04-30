@@ -235,6 +235,7 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last'):
     #if dynamic:
     df_cle = df_con[~df_con.index.duplicated(keep=keep)]  # remove the duplicated from index
     df_cle = df_cle.sort_index()  # sort the index
+    df_cle = df_cle[df_cle.index.year >= 2009]
     if dynamic:
         #freq = getFreq4DF(df1)
         df_cle = df_cle.asfreq(freq)  # set the frequency, this missing data will be filled with nan
