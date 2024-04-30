@@ -1,9 +1,11 @@
 from pathlib import Path
 import time
 
-#a = Path('Pecan5R_CR6_Time_Series.dat.1.backup')
-b = Path('Pecan5R_CR6_Time_Series')
-#c = Path('Pecan5R_CR6_Time_Series.dat')
+# a = Path('Pecan5R_CR6_Time_Series.dat.1.backup')
+b = Path('Pecan5R_CR6_Time_Series.dat')
+
+
+# c = Path('Pecan5R_CR6_Time_Series.dat')
 
 def blocks(files, size=65536):
     while True:
@@ -17,9 +19,6 @@ def numLines(filePath):
         return sum(bl.count("\n") for bl in blocks(f))
 
 
-
-			
-			
 def renameAFileWithDate(pathFile):
     """ Rename a file with the created date """
     pathFile = Path(pathFile)
@@ -34,7 +33,8 @@ def renameAFileWithDate(pathFile):
             pathFile.rename(completeName)
         except (PermissionError, WindowsError) as error:
             try:
-                pathFile.rename(completeName.parent.joinpath(f'{completeName.stem}_{strftime("%Y%m%d_%H%M%S", time.gmtime(time.time() - time.timezone))}{completeName.suffix}'))
+                pathFile.rename(completeName.parent.joinpath(
+                    f'{completeName.stem}_{strftime("%Y%m%d_%H%M%S", time.gmtime(time.time() - time.timezone))}{completeName.suffix}'))
             except (PermissionError, WindowsError) as error:
                 msg = f'Not possible to rename the file{pathFile} because {error}'
                 print(msg)
@@ -44,10 +44,10 @@ def renameAFileWithDate(pathFile):
         msg = f'Not a file {pathFile}'
         print(msg)
         return False
-        
-        
+
+
 def splitFile(filePath, numLines):
-    #filePath = renameAFileWithDate(filePath)
+    # filePath = renameAFileWithDate(filePath)
     lines_per_file = numLines
     smallfile = None
     numF = 0
@@ -66,6 +66,8 @@ def splitFile(filePath, numLines):
             smallfile.write(line)
         if smallfile:
             smallfile.close()
-            #renameAFileWithDate(small_filename)
-            
-splitFile(b, 5853226)
+            renameAFileWithDate(small_filename)
+
+
+splitFile(b, 6286424)
+# print(numLines(b)/20)
