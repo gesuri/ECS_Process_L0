@@ -245,7 +245,7 @@ class InfoFile:
 
     def _setL0paths_(self, version=consts.FILE_STRUCTURE_VERSION):
         # file paths
-        year = self.f_creationDT.strftime('%y')
+        year = self.f_creationDT.strftime('%Y')
         month = self.f_creationDT.strftime('%m')
         day = self.f_creationDT.strftime('%d')
         self.st_tableName = self.metaTable[config.L1_FILE_NAME]
