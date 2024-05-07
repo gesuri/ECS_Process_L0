@@ -344,8 +344,8 @@ class InfoFile:
                 self.pathL1.append(basePath.joinpath(str(item[1]), item[0]))
         for item in filenameCSV_res:
             self.pathL1Resample.append(basePath.joinpath(str(item[1]), 'Resampled', item[0]))
-        for item in self.pathL1Resample:
-            self.log.debug(f'pathL1Resample: {item}')
+        #for item in self.pathL1Resample:
+        #    self.log.debug(f'pathL1Resample: {item}')
 
     def __str__(self):
         return f'{self.pathFile} ({self.pathTOA.name})'
