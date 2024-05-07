@@ -163,9 +163,19 @@ def run():
                 ##c_df.index = c_df.index.map(LibDataTransfer.datetime_format_HF)  # Maybe move to LibDataTransfer.writeDF2csv but need to dectec when uses if it is not HF table
             # for RECORD, remove NaN with FLAG and convert to int RECORD column
             ##c_df['RECORD'] = c_df['RECORD'].fillna(consts.FLAG).astype(int)
+
+            # update the L1 resample files if needed
+            if l1.resample:
+                log.info(f'For site {l0.f_site}, table {l0.cs_tableName} resampling to {l1.resample}')
+                resampleDF = LibDataTransfer.resampleDataFrame(c_df, l1.resample)
+                log.debug(f'For site {l0.f_site}, table {l0.cs_tableName} resampled saved to {l1.pathL1Resample[0]}')
+                LibDataTransfer.writeDF2csv(pathFile=l1.pathL1Resample.pop(), dataframe=resampleDF, header=l0.cs_headers,
+                                            indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
+
             # write the data to a csv file that is L1
             LibDataTransfer.writeDF2csv(pathFile=fL1, dataframe=c_df, header=l0.cs_headers,
-                                        indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
+                                            indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
+
             end2 = time.time()
             log.live(f'Total time for file L1: {fL1.name}: {end2 - start2:.2f} seconds')
         # move the L0 files to the corresponding folder

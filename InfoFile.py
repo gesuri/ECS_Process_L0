@@ -80,6 +80,7 @@ class InfoFile:
     pathTOA = None  # path of the current file in TOA5 format
     pathL0TOB = None  # storage path where the table will be saved in TOB1 format
     pathTOB = None  # path of the current file in TOB1 format
+    pathL1Resample = []  # path for the resampled data
     statusFile = None  #consts.STATUS_FILE.copy()  # The file is OK
     pathLog = None  # path for the log
     log = None  # log object
@@ -96,6 +97,7 @@ class InfoFile:
     rename = True  # option to rename the file to process, good for debugging
     staticTable = False  # flag to indicate if the table is static or not
     metaTable = None  # metadata of the table from consts
+    resample = False  # if string, then it is the frequency of the resample
 
     def __init__(self, pathFileName, cleanDataFrame=True, rename=True):
         self.statusFile = consts.STATUS_FILE.copy()
@@ -127,7 +129,14 @@ class InfoFile:
                 self.statusFile[paths['err']] = True
         else:
             self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True  # set missing file flag to statusFile
-        self.getInfo()
+        self.metaTable = config.getTable(self.cs_tableName)  # get the metadata of the table
+        self.getInfo()  # get the information from the file
+        #self._setL0paths_()  # set the paths for the L0 files
+        #self.genDataFrame()  # get the actual data from the file
+        #self._setL1paths_()  # set the paths for the L1 files
+        # if resample required, resample the data
+        if self.metaTable[config.RESAMPLE]:
+            self.resample = self.metaTable[config.RESAMPLE]
         end_time = time.time()
         self.log.live(f'InfoFile created in {end_time - start_time:.2f} seconds')
 
@@ -232,11 +241,10 @@ class InfoFile:
         # get the number of lines of the file
         if 'TOA' in self.cs_type:
             self.numberLines = systemTools.rawincount(self.pathTOA) - len(consts.CS_FILE_HEADER_LINE) + 1
-        self._setL0paths_()
 
+        self._setL0paths_()
         # get the actual data from the file
         self.genDataFrame()
-
     # except Exception as e:
     #    exc_type, exc_obj, exc_tb = sys.exc_info()
     #    self.log.error(f'Exception in getInfoFileName: {e}, line {exc_tb.tb_lineno}\n{sys.exc_info()}')
@@ -256,7 +264,6 @@ class InfoFile:
         filename = f'{self.f_site_r}_{project}_{self.st_tableName}_{consts.L0}_{fcreatioDT}'
         filenameTOA = f'{filename}.{consts.ST_EXT_TOA}'
         filenameTOB = f'{filename}.{consts.ST_EXT_TOB}'
-
 
         if version == 1:
             basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName, year, 'Raw_Data')
@@ -285,6 +292,7 @@ class InfoFile:
             self.log.error(f'{self.df}')
             return
         filenameCSV = []
+        filenameCSV_res = []
         self.pathL1 = []
         tableName = self.metaTable[config.L1_FILE_NAME]
         folderName = self.metaTable[config.L1_FOLDER_NAME]
@@ -292,42 +300,52 @@ class InfoFile:
         # file name for yearly data to store
         if self.st_fq == consts.FREQ_YEARLY:
             years = range(self.firstLineDT.year, self.lastLineDT.year + 1)
-            if version == 1:
-                for year in years:
-                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
-            elif version == 2:
-                for year in years:
-                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
+            #if version == 1:
+            #    for year in years:
+            #        filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
+            #        filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}_res.csv', year])
+            #elif version == 2:
+            for year in years:
+                filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
+                filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}_res.csv', year])
         # file name for high frequency data to store, daily
         elif self.st_fq == consts.FREQ_DAILY:
             fdt = self.firstLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
             ldt = self.lastLineDT.replace(hour=23, minute=59)
             days = range((ldt - fdt).days + 1)
-            if version == 1:
-                for item in days:
-                    dtItem = fdt + timedelta(days=item)
-                    dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
-                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
-                                        dtItem.year])
-            elif version == 2:
-                for item in days:
-                    dtItem = fdt + timedelta(days=item)
-                    dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
-                    filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
+            #if version == 1:
+            #    for item in days:
+            #        dtItem = fdt + timedelta(days=item)
+            #        dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
+            #        filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
+            #                            dtItem.year])
+            #        filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}_res.csv',
+            #                                dtItem.year])
+            #elif version == 2:
+            for item in days:
+                dtItem = fdt + timedelta(days=item)
+                dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
+                filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
+                                    dtItem.year])
+                filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}_res.csv',
                                         dtItem.year])
         # path data structure
-        if version == 1:
-            basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName)
+        #if version == 1:
+        #    basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName)
+        #    for item in filenameCSV:
+        #        self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
+        #elif version == 2:
+        basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, project, consts.L1, folderName)
+        if self.st_fq == consts.FREQ_YEARLY:
             for item in filenameCSV:
-                self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
-        elif version == 2:
-            basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, project, consts.L1, folderName)
-            if self.st_fq == consts.FREQ_YEARLY:
-                for item in filenameCSV:
-                    self.pathL1.append(basePath.joinpath(item[0]))
-            elif self.st_fq == consts.FREQ_DAILY:
-                for item in filenameCSV:
-                    self.pathL1.append(basePath.joinpath(str(item[1]), item[0]))
+                self.pathL1.append(basePath.joinpath(item[0]))
+        elif self.st_fq == consts.FREQ_DAILY:
+            for item in filenameCSV:
+                self.pathL1.append(basePath.joinpath(str(item[1]), item[0]))
+        for item in filenameCSV_res:
+            self.pathL1Resample.append(basePath.joinpath(str(item[1]), 'Resampled', item[0]))
+        for item in self.pathL1Resample:
+            self.log.debug(f'pathL1Resample: {item}')
 
     def __str__(self):
         return f'{self.pathFile} ({self.pathTOA.name})'

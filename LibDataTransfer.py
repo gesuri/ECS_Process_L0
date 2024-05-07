@@ -419,6 +419,13 @@ def getListOfFiles(path, match):
     os.chdir(actualDir)
     return l
 
+def resampleDataFrame(df, freq, method='mean'):
+    """ Resample the dataframe to the frequency
+     freq:
+       'L' for millisencos, 'S' seconds, 'T' for minutes 'D' for daily, 'H' for hourly, 'M' for monthly, 'Y' for yearly
+     method: 'mean', 'sum', 'max', 'min', 'std', 'count', 'first', 'last'
+      """
+    return df.resample(freq).apply(method)
 
 ###########################################
 ### MD5

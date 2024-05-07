@@ -16,6 +16,7 @@ INDEX_MAP_FUNC = 'indexMapFunc'
 COLS_2_PLOT = 'cols2Plot'
 TIME_2_PLOT = 'time2Plot'
 PROJECT = 'project'
+RESAMPLE = 'resampled'
 
 
 # Here is the definition of the tables. If you don't know what tables are of if there is a new table, the system will
@@ -46,9 +47,12 @@ TABLES = {
         # column names to plot, eg. ["panel_temp_Avg", "batt_volt_Avg"]
         COLS_2_PLOT: [],
         # time to plot, the time should be a pandas DateOffset, eg. pd.DateOffset(days=30) for 30 days
-        TIME_2_PLOT: DateOffset(days=30)
+        TIME_2_PLOT: DateOffset(days=30),
         # project that the table belongs to, eg. ['ECS_AboveCanopy']
         #PROJECT: [consts.ECS_NAME],
+        # additional table resampled. False|'1T' for 1 minute|'1H' for 1 hour|
+        #   'D' for days|'S' for seconds|'L' for milliseconds
+        RESAMPLE: False,
     },
     # Bahada
     'ts_data': {
@@ -108,6 +112,7 @@ TABLES = {
         #'archiveAfter': consts.DEFAULT_ARCHIVE_AFTER,
         INDEX_MAP_FUNC: LibDataTransfer.datetime_format_HF,
         COLS_2_PLOT: ["CO2", "H2O", "t_hmp"],
+        RESAMPLE: '1T',
     },
     # Pecan5R
     'Config_Setting_Notes': {  ## TO REMOVE
