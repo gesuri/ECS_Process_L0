@@ -167,7 +167,7 @@ def run():
             # update the L1 resample files if needed
             if l1.resample:
                 log.info(f'For site {l0.f_site}, table {l0.cs_tableName} resampling to {l1.resample}')
-                resampleDF = LibDataTransfer.resampleDataFrame(c_df, l1.resample)
+                resampleDF = LibDataTransfer.resampleDataFrame(df=c_df, freq=l1.resample, method='last')
                 log.debug(f'For site {l0.f_site}, table {l0.cs_tableName} resampled saved to {l1.pathL1Resample[0]}')
                 LibDataTransfer.writeDF2csv(pathFile=l1.pathL1Resample.pop(), dataframe=resampleDF, header=l0.cs_headers,
                                             indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
