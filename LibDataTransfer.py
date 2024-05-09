@@ -413,6 +413,9 @@ def getListOfFiles(path, match):
     """ Return the list of files that match.
     e.g.: getListOfFiles('CR3000_flux_20130909_17*.*')
     return: ['CR3000_flux_20130903_170000.dat', 'CR3000_flux_20130903_173000.dat'] """
+    #TODO:
+    # dirPath = Path(path)
+    # return [file for file in dirPath.glob(pattern) if file.is_file()]
     actualDir = os.getcwd()
     os.chdir(path)
     l = glob.glob(match)
