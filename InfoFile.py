@@ -307,7 +307,7 @@ class InfoFile:
             #elif version == 2:
             for year in years:
                 filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
-                filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}_res.csv', year])
+                filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}_1min.csv', year])
         # file name for high frequency data to store, daily
         elif self.st_fq == consts.FREQ_DAILY:
             fdt = self.firstLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -325,9 +325,8 @@ class InfoFile:
             for item in days:
                 dtItem = fdt + timedelta(days=item)
                 dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
-                filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
-                                    dtItem.year])
-                filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}_res.csv',
+                filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv', dtItem.year])
+                filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}_1min.csv',
                                         dtItem.year])
         # path data structure
         #if version == 1:
@@ -343,15 +342,18 @@ class InfoFile:
             for item in filenameCSV:
                 self.pathL1.append(basePath.joinpath(str(item[1]), item[0]))
         for item in filenameCSV_res:
-            self.pathL1Resample.append(basePath.joinpath(str(item[1]), 'Resampled', item[0]))
-        #for item in self.pathL1Resample:
-        #    self.log.debug(f'pathL1Resample: {item}')
+            self.pathL1Resample.append(basePath.joinpath(f'{item[1]}_1min', item[0]))
 
     def __str__(self):
         return f'{self.pathFile} ({self.pathTOA.name})'
 
     def __repr__(self):
-        return f'{self.pathFile} ({self.pathTOA.name})'
+        if self.pathFile is None:
+            return 'No file'
+        elif self.pathTOA is None:
+            return f'{self.pathFile} (Not available L1 file)'
+        else:
+            return f'{self.pathFile} ({self.pathTOA.name})'
 
     def print(self, returnDict=False):
         di = {}
