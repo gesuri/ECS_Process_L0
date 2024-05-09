@@ -92,7 +92,8 @@ def run():
         gDF = LibDataTransfer.fuseDataFrame(l0.df, freq=l0.frequency, group=l0.st_fq, log=log)
         # created a list based on the storage frequency. If days, for ts, then each day is a key.
         i_gDF = list(gDF.keys())
-        for fL1 in l0.pathL1:  # for each stored or cloud file (L1 file) related to the current file, L0 file
+        for idx_pL1 in range(len(l0.pathL1)):  # for each stored or cloud file (L1 file) related to the current file, L0 file
+            fL1 = l0.pathL1[idx_pL1]
             start2 = time.time()  # keep track of the time for each L1 file
             createNewFile = False  # flag to create a new file
             log.live(f'For {file.name}, processing L1 {fL1.name}')
@@ -165,16 +166,17 @@ def run():
             ##c_df['RECORD'] = c_df['RECORD'].fillna(consts.FLAG).astype(int)
 
             # update the L1 resample files if needed
-            if l1.resample:
-                log.info(f'For site {l0.f_site}, table {l0.cs_tableName} resampling to {l1.resample}')
-                resampleDF = LibDataTransfer.resampleDataFrame(df=c_df, freq=l1.resample, method='last')
-                log.debug(f'For site {l0.f_site}, table {l0.cs_tableName} resampled saved to {l1.pathL1Resample[0]}')
-                LibDataTransfer.writeDF2csv(pathFile=l1.pathL1Resample.pop(), dataframe=resampleDF, header=l0.cs_headers,
+            if l0.resample:
+                log.info(f'For site {l0.f_site}, table {l0.cs_tableName} resampling to {l0.resample}')
+                resampleDF = LibDataTransfer.resampleDataFrame(df=c_df, freq=l0.resample, method='last')
+                pathResample = l0.pathL1Resample[idx_pL1]
+                log.debug(f'For site {l0.f_site}, table {l0.cs_tableName} resampled saved to {pathResample}')
+                LibDataTransfer.writeDF2csv(pathFile=pathResample, dataframe=resampleDF, header=l0.cs_headers,
                                             indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
 
             # write the data to a csv file that is L1
             LibDataTransfer.writeDF2csv(pathFile=fL1, dataframe=c_df, header=l0.cs_headers,
-                                            indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
+                                        indexMapFunc=l0.metaTable['indexMapFunc'], log=log)
 
             end2 = time.time()
             log.live(f'Total time for file L1: {fL1.name}: {end2 - start2:.2f} seconds')
@@ -187,6 +189,7 @@ def run():
             LibDataTransfer.moveAfileWOOW(l0.pathTOB, l0.pathL0TOB)
         log.live(f'Total time for file L0: {file.name} {file.name}: {elapsedTime1.elapsed()}')
         log.live(f'<<<<<<<<<<<<<<<<< {file.name} <<<<<<<<<<<<<<<<<<<')
+
 
 
 if __name__ == '__main__':
