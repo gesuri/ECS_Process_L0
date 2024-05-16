@@ -294,6 +294,7 @@ class InfoFile:
         filenameCSV = []
         filenameCSV_res = []
         self.pathL1 = []
+        self.pathL1Resample = []
         tableName = self.metaTable[config.L1_FILE_NAME]
         folderName = self.metaTable[config.L1_FOLDER_NAME]
         project = self.f_project
