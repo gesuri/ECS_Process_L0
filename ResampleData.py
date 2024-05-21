@@ -11,9 +11,10 @@ import LibDataTransfer
 
 class ResampleData:
 
-    def __init__(self, inPath, freq='1T', outPath=None, method='last'):
+    def __init__(self, inPath, freq='1T', outPath=None, method='last', debug=False):
         """ Resample the data to a lower frequency
         return: pd.DataFrame  """
+        self.debug = debug
         self.df = None
         self.meta = None
         self.inPathFile = None
@@ -26,7 +27,6 @@ class ResampleData:
             self.strFreq = '1min'
         else:
             self.strFreq = self.freq
-        self.freq = freq
         self.method = method
         if self.inPath.is_dir():
             self.inFiles = [x for x in self.inPath.glob('*.csv') if x.is_file()]
@@ -36,7 +36,7 @@ class ResampleData:
             if self.inPath.is_dir():
                 outPath = self.inPath.parent.joinpath(f'{self.inPath.stem}_{self.strFreq}')
             else:
-                outPath = self.inPath.parent.joinpath(f'{self.inPath.stem}_{self.strFreq}{self.inPath.suffix}')
+                outPath = self.inPath.parent.parent.joinpath(f'{self.inPath.parent.name}_{self.strFreq}')
         self.outPath = Path(outPath)
         self.doIt()
 
@@ -48,8 +48,9 @@ class ResampleData:
             self.outPathFile = self.outPath.joinpath(f'{self.inPathFile.stem}_{self.strFreq}{self.inPathFile.suffix}')
             print(f'Processing {self.inPathFile.name} to ...\\{self.outPathFile.relative_to(self.inPathFile.parent.parent)}')
             self.df = self.getDF()
-            self.df = self.resampleData()
-            self.saveDF()
+            if not self.debug:
+                self.df = self.resampleData()
+                self.saveDF()
 
     def getDF(self):
         """ Get the dataframe from the file
@@ -57,7 +58,8 @@ class ResampleData:
         return: pd.DataFrame
         """
         self.df = pd.read_csv(self.inPathFile, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE) - 1, index_col=0,
-                              na_values=[-99999, "NAN"], names=self.colNames, parse_dates=True, date_format='mixed')
+                              na_values=[consts.FLAG, "NAN"], names=self.colNames, parse_dates=True,
+                              date_format='mixed')
         return self.df
 
     def resampleData(self):

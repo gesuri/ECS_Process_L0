@@ -389,7 +389,8 @@ class InfoFile:
                                   keep_default_na=False, names=self.colNames, parse_dates=True, date_format='mixed')
         else:
             self.df = pd.read_csv(self.pathTOA, header=None, skiprows=len(consts.CS_FILE_HEADER_LINE) - 1, index_col=0,
-                                  na_values=[-99999, "NAN"], names=self.colNames, parse_dates=True, date_format='mixed')
+                                  na_values=[consts.FLAG, "NAN"], names=self.colNames, parse_dates=True,
+                                  date_format='mixed')
         self._cleaned_ = False
         self.setFragmentation()  # set the fragmentation of the file and set the frequency
         if self._cleanDF_:
