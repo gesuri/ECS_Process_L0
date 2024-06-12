@@ -419,7 +419,7 @@ class InfoFile:
         self.fragmentation = LibDataTransfer.getFragmentation4DF(self.df)
         if self.fragmentation is not None:
             self.fragmentation.index.rename('fragmentation', inplace=True)
-            if self.frequency != -1:
+            if self.frequency != -1 and len(self.fragmentation) > 0:
                 self.frequency = self.fragmentation.index[0]
             self.setStorageFrequency()
 
