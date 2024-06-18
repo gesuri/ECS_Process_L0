@@ -241,7 +241,7 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last', m
     if numBefore != numAfter:
         msg = f'<LibDataTransfer> The data was filtered from {numBefore} to {numAfter} rows remaining {numBefore-numAfter}.'
         if log:
-            log.warning(msg)
+            log.warn(msg)
         else:
             print
     if dynamic:
