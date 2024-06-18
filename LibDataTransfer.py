@@ -194,15 +194,13 @@ def getCSFromLine(line):
     return info
 
 
-def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last'):
+def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last', maxNumYears=1):
     """ Return a list of dataframes with the data of df1 and df2 sorted and without duplicated index and with the freq
      Also, it will group the data by the group. If group is 'D' it will group by day or 'Y' by year """
     start_time = time.time()
     dynamic = True
     if freq is None or freq == -1:
         dynamic = False
-# TODO: check if the table or the df 1 or 2 is static or dynamic. the default should be dynamic, if static, then
-#  should not check for line 214, 218, 219, 226, 227?, 228 is detecting if static already.
     df_cycles = {}
     if df2 is not None:
         if not df1.columns.equals(df2.columns):
@@ -232,10 +230,20 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last'):
         df_con = pd.concat([df_1, df_2])
     else:
         df_con = df_1
-    #if dynamic:
+    # if dynamic:
     df_cle = df_con[~df_con.index.duplicated(keep=keep)]  # remove the duplicated from index
     df_cle = df_cle.sort_index()  # sort the index
-    df_cle = df_cle[df_cle.index.year >= 2009]
+    # check if the data is not old or if there are incorrect dates
+    c_year = time.localtime().tm_year
+    numBefore = len(df_cle)
+    df_cle = df_cle[(df_cle.index.year >= c_year-maxNumYears) & (df_cle.index.year <= c_year+maxNumYears)]
+    numAfter = len(df_cle)
+    if numBefore != numAfter:
+        msg = f'<LibDataTransfer> The data was filtered from {numBefore} to {numAfter} rows remaining {numBefore-numAfter}.'
+        if log:
+            log.warning(msg)
+        else:
+            print
     if dynamic:
         #freq = getFreq4DF(df1)
         df_cle = df_cle.asfreq(freq)  # set the frequency, this missing data will be filled with nan
