@@ -6,6 +6,7 @@
 # Author:      Gesuri
 #
 # Created:     February 27, 2018
+# Updated:     August 13, 2024
 #
 # Copyright:   (c) Gesuri 2018
 #
@@ -62,9 +63,9 @@
 #
 
 
-from os.path import splitext, basename
+# from os.path import splitext, basename
 from os import system, getcwd
-from sys import argv
+# from sys import argv
 from time import localtime
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -127,16 +128,20 @@ class Log:
           line:      line to print
           path:      path without file name (const.PATH_LOGS)
           timestamp: boolean to indicate if add timestamp (True)
-          fprint:    boolean if in addition to print in file, print in stdio (True)
+          fprint:    boolean, print in file, print in stdio (True)
+          sprint:    boolean, print in stdio (True)
     """
     path = None
-    #name = None
 
-    def __init__(self, path=None, timestamp=True, fprint=True):
+    # name = None
+
+    def __init__(self, path=None, timestamp=True, fprint=True, sprint=True):
+        self.sprint = sprint
         if path is None:
             path = getcwd()
         self.path = Path(path)
-        self._checkPath_()
+        if sprint:
+            self._checkPath_()
         self.timestamp = timestamp
         self.fprint = fprint
 
@@ -156,6 +161,11 @@ class Log:
     def setFprint(self, fprint):
         self.fprint = fprint
 
+    def setSprint(self, sprint):
+        self.sprint = sprint
+        if self.sprint:
+            self._checkPath_()
+
     # def getName(self):
     #     return self.name
 
@@ -167,6 +177,9 @@ class Log:
 
     def getFprint(self):
         return self.fprint
+
+    def getSpint(self):
+        return self.sprint
 
     def getFullPath(self):
         return self.path
@@ -180,36 +193,39 @@ class Log:
         if type(line) != 'str':
             line = str(line)
         if len(line) > 0:
-            if not self.path.is_file():
-                f = self.path.open('w')
-            else:
-                try:
-                    f = self.path.open(wo)
-                except IOError:
-                    system(f'sudo chown pi:pi {self.path}')
+            if self.fprint:
+                if not self.path.is_file():
+                    f = self.path.open('w')
+                else:
                     try:
                         f = self.path.open(wo)
                     except IOError:
-                        system(f'sudo echo error writing {line} in file {self.path.name} >> errLog.log')
-                        return
+                        system(f'sudo chown pi:pi {self.path}')
+                        try:
+                            f = self.path.open(wo)
+                        except IOError:
+                            system(f'sudo echo error writing {line} in file {self.path.name} >> errLog.log')
+                            return
             now = getStrTime()
-            if self.fprint:
+            if self.fprint or self.sprint:
                 if self.timestamp:
                     msg = f'{now}, {line}'
                 else:
                     msg = line
-                if color:
-                    color(msg)
+                if self.sprint:
+                    if color:
+                        color(msg)
+                    else:
+                        print(msg)
+            if self.fprint:
+                if line[-1] != '\n':
+                    line += '\n'
+                if self.timestamp:
+                    f.write(f'{now},{line}')
                 else:
-                    print(msg)
-            if line[-1] != '\n':
-                line += '\n'
-            if self.timestamp:
-                f.write(f'{now},{line}')
-            else:
-                f.write(line)
-            f.flush()
-            f.close()
+                    f.write(line)
+                f.flush()
+                f.close()
 
     def ow(self, line):
         """ Overwrite the same file log """
