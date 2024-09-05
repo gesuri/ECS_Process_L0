@@ -33,7 +33,6 @@
 #   not needed
 
 
-
 from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
@@ -81,7 +80,7 @@ class InfoFile:
     pathL0TOB = None  # storage path where the table will be saved in TOB1 format
     pathTOB = None  # path of the current file in TOB1 format
     pathL1Resample = []  # path for the resampled data
-    statusFile = None  #consts.STATUS_FILE.copy()  # The file is OK
+    statusFile = None  # The file is OK
     pathLog = None  # path for the log
     log = None  # log object
     firstLineDT = None  # datetime object from first line of the file
@@ -131,9 +130,6 @@ class InfoFile:
             self.statusFile[consts.STATUS_FILE_NOT_EXIST] = True  # set missing file flag to statusFile
         self.metaTable = config.getTable(self.cs_tableName)  # get the metadata of the table
         self.getInfo()  # get the information from the file
-        #self._setL0paths_()  # set the paths for the L0 files
-        #self.genDataFrame()  # get the actual data from the file
-        #self._setL1paths_()  # set the paths for the L1 files
         # if resample required, resample the data
         if self.metaTable[config.RESAMPLE]:
             self.resample = self.metaTable[config.RESAMPLE]
@@ -146,7 +142,7 @@ class InfoFile:
         # try:
         if self.pathTOA.suffix.lower() == '.csv':  # check and set the file level
             self.level = 1
-        ## get the metadata from the file name
+        # get the metadata from the file name
         # get the name of the file
         fileName = self.pathTOA.stem
         # get the extension of the file
@@ -159,7 +155,7 @@ class InfoFile:
         self.f_project = fileNameSplit[consts.CS_FILE_NAME_DATALOGGER]
         currentYear = datetime.now().year
         if len(fileNameSplit) > 3:
-            self.f_tableName = fileName[len(self.f_site) + len(self.f_project) + 2:-(len('_'.join(fileNameSplit[-2:])) + 1)]
+            self.f_tableName = fileName[len(self.f_site)+len(self.f_project)+2:-(len('_'.join(fileNameSplit[-2:]))+1)]
         else:
             self.f_tableName = fileNameSplit[consts.CS_FILE_NAME_TABLE]
         logName = f'{self.f_site}_{self.f_project}_{self.f_tableName}_{currentYear}.log'
@@ -179,7 +175,6 @@ class InfoFile:
             self.f_creationDT = datetime.fromtimestamp(self.pathTOA.stat().st_ctime)
             if self.f_size > 1:
                 self.statusFile[consts.STATUS_FILE_OK] = True
-                # self.statusFile[consts.STATUS_FILE_NOT_EXIST] = False
             else:
                 self.statusFile[consts.STATUS_FILE_EMPTY] = True
                 self.log.error(f'{self.pathFile} ({self.pathTOA.name}) is empty')
@@ -191,7 +186,7 @@ class InfoFile:
             self.log.error(f'{self.pathFile} ({self.pathTOA.name}) does not exist or there is some problem with it')
             self.terminate()
             return
-        ## get the metadata from the actual file
+        # get the metadata from the actual file
         _meta_ = LibDataTransfer.getHeaderFLlineFile(self.pathTOA, self.log)
         self.cs_headers = _meta_['headers']
         self.colNames = LibDataTransfer.getStrippedHeaderLine(self.cs_headers[consts.CS_FILE_HEADER_LINE['FIELDS']])
@@ -218,7 +213,8 @@ class InfoFile:
             self.timestampFormat = LibDataTransfer.datetime_format_HF  # to be used with df.index.map(timestampFormat)
             self.hf = True
         elif self.frequency == consts.FREQ_STATIC:
-            self.timestampFormat = lambda x: LibDataTransfer.datetime_format(x, 3)  # to be used with df.index.map(timestampFormat)
+            # to be used with df.index.map(timestampFormat)
+            self.timestampFormat = lambda x: LibDataTransfer.datetime_format(x, 3)
             self.hf = False
         else:
             self.timestampFormat = None  # no need to uses df.index.map(timestampFormat)
@@ -228,7 +224,7 @@ class InfoFile:
         if self.metaTable[config.CLASS] == consts.CLASS_STATIC:
             self._cleanDF_ = False
             self.staticTable = True
-        if not (self.staticTable) and _meta_['lineNumCols'] != _meta_['headerNumCols']:
+        if not self.staticTable and _meta_['lineNumCols'] != _meta_['headerNumCols']:
             self.log.error(f'{self.pathTOA.name} has different number of columns in the header and the first line. '
                            f'The number of columns in the header is {_meta_["headerNumCols"]} and in '
                            f'the first line is {_meta_["lineNumCols"]}. This file is going to be renamed and avoided')
@@ -265,7 +261,7 @@ class InfoFile:
         filenameTOA = f'{filename}.{consts.ST_EXT_TOA}'
         filenameTOB = f'{filename}.{consts.ST_EXT_TOB}'
 
-        if version == 1:
+        if version == 1:  # old file structure version, not anymore used
             basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName, year, 'Raw_Data')
             self.pathL0TOA = basePath.joinpath(consts.ST_NAME_TOA, month, day, filenameTOA)
             if self.metaTable[config.SAVE_L0_TOB]:
@@ -301,11 +297,6 @@ class InfoFile:
         # file name for yearly data to store
         if self.st_fq == consts.FREQ_YEARLY:
             years = range(self.firstLineDT.year, self.lastLineDT.year + 1)
-            #if version == 1:
-            #    for year in years:
-            #        filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
-            #        filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}_res.csv', year])
-            #elif version == 2:
             for year in years:
                 filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}.csv', year])
                 filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{year}_1min.csv', year])
@@ -314,15 +305,6 @@ class InfoFile:
             fdt = self.firstLineDT.replace(hour=0, minute=0, second=0, microsecond=0)
             ldt = self.lastLineDT.replace(hour=23, minute=59)
             days = range((ldt - fdt).days + 1)
-            #if version == 1:
-            #    for item in days:
-            #        dtItem = fdt + timedelta(days=item)
-            #        dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
-            #        filenameCSV.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}.csv',
-            #                            dtItem.year])
-            #        filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}_res.csv',
-            #                                dtItem.year])
-            #elif version == 2:
             for item in days:
                 dtItem = fdt + timedelta(days=item)
                 dtItemStr = dtItem.strftime(consts.TIMESTAMP_FORMAT_DAILY)
@@ -330,11 +312,6 @@ class InfoFile:
                 filenameCSV_res.append([f'{self.f_site_r}_{project}_{tableName}_{consts.L1}_{dtItemStr}_1min.csv',
                                         dtItem.year])
         # path data structure
-        #if version == 1:
-        #    basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, consts.ECS_NAME, folderName)
-        #    for item in filenameCSV:
-        #        self.pathL1.append(basePath.joinpath(str(item[1]), 'Raw_Data', 'ASCII', item[0]))
-        #elif version == 2:
         basePath = consts.PATH_CLOUD.joinpath(self.f_site_r, project, consts.L1, folderName)
         if self.st_fq == consts.FREQ_YEARLY:
             for item in filenameCSV:
