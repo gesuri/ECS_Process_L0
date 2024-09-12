@@ -37,18 +37,19 @@ ECS_NAME = 'Tower'  # Name of the Eddy Covariance system folder
 
 if not dev:  # production version
     # Paths
-    PATH_HARVESTED_DATA = Path(r'C:/Campbellsci/LoggerNet/')  # Where LoggerNet save the data
-    PATH_WORKING_DATA = Path(r'C:/LatestData')  # Where the data is moved to temporary processed
-    PATH_CLOUD = Path(r'C:/Users/CZO_data/OneDrive - University of Texas at El Paso/Data/')  # Where the data is moved to permanent storage
+    PATH_HARVESTED_DATA = Path(r'E:/temp/Collected/')  # Path(r'E:/LoggerNet/')  # Where LoggerNet save the data
+    PATH_TEMP_BACKUP = Path(r'E:/LatestData')  # Where the data is moved to temporary backup
+    PATH_CLOUD = Path(r'E:/Data/')  # Where the data is moved to permanent storage
 else:  # development version
     # Paths
-    PATH_HARVESTED_DATA = Path(r'E:/temp/Collected/')  # Where LoggerNet save the data
-    PATH_WORKING_DATA = Path(r'E:/Data/LatestData')  # Where the data is moved to temporary processed
-    #PATH_CLOUD = Path(r'C:/temp/Bahada_test')  # SharePoint/Data/
-    PATH_CLOUD = Path(r'E:/Data/')  # SharePoint/Data/
+    PATH_HARVESTED_DATA = Path(r'C:/temp/Collected/')  # Where LoggerNet save the data
+    PATH_TEMP_BACKUP = Path(r'C:/LatestData')  # Where the data is moved to temporary backup
+    PATH_CLOUD = Path(r'C:/Data/')  # SharePoint/Data/
 
 PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
-PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')  # Where the files that are not processed for some reason are saved
+# Where the files that are not processed for some reason are saved
+PATH_CHECK_FILES = PATH_HARVESTED_DATA.joinpath('CheckFiles')
+PATH_FILES_NOT_UPLOADED = PATH_HARVESTED_DATA.joinpath('NotUploaded')  # Where the files that are not uploaded are saved
 TOB2PROG = Path(__file__).parent.resolve().joinpath('Programs')
 
 # Campbell Scientific files, Meta data info
@@ -152,7 +153,7 @@ CS_DATA_DICT = {
 YEAR_ = '-YYYY-'  # string to replace the year
 
 MIN_PCT_DATA = 0.1  # minimum percentage of data to be considered valid
-# it was 0.5
+TIME_REMOVE_TEMP_BACKUP = datetime.timedelta(days=7)  # time to remove the files from the temporary backup
 
 FLAG = -9999  # flag for missing data
 CLASS_STATIC = 'static'  # static table

@@ -16,18 +16,25 @@
 # info about CS tables:
 # https://help.campbellsci.com/GRANITE9-10/Content/shared/Details/Data/About_Data_Tables.htm?TocPath=Working%20with%20data%7C_____4
 
+## TODO: create a new function to check const.PATH_TEMP_BACKUP and erased it after const.TIME_REMOVE_TEMP_BACKUP
+## TODO: on download_SP_files, check if the file already exists in local folder. if exists, check the size and and date
+##       if the file in the cloud is newer, download it. If the file in the local folder is newer, upload it.
 
 from pathlib import Path
-
+from datetime import datetime, timedelta
 import time
 import getopt
 import sys
+import os
 
 import systemTools
 import consts
 import Log
 import InfoFile
 import LibDataTransfer
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'MSSP_file_driver'))
+import office365_api
 
 log = Log.Log(path=consts.PATH_GENERAL_LOGS.joinpath('ECS_Process_L0.log'))
 
@@ -71,6 +78,64 @@ def arguments(argv):
             sys.exit()
 
 
+def check_log_file(path):
+    """Check if the file is a log file or if it is in a log folder"""
+    log_folder_present = any(folder.name.lower() in ['logs', 'log'] for folder in path.parents)
+    if log_folder_present or path.suffix.lower() == '.log':
+        return True
+    return False
+
+
+def download_SP_files(pathfiles):
+    # download the file from SharePoint.
+    # pathfile is the path to local file that must fit with the path in SharePoint
+    # return True if the file was downloaded, False if not
+    et = systemTools.ElapsedTime()
+    sp = office365_api.SharePoint(log=log)
+    if not isinstance(pathfiles, list):
+        pathfiles = [pathfiles]
+    for file in pathfiles:
+        pf = Path(file)
+        file_name = pf.name
+        folder_name = pf.relative_to(consts.PATH_CLOUD).parent
+        if not pf.parent.exists():
+            pf.parent.mkdir(parents=True)
+        # download the file from SharePoint
+        log.live(f'Downloading {file_name} from SharePoint')
+        if not sp.download_large_file(file_name, folder_name, pf):
+            log.warn(f'Not possible download {file_name} from SharePoint.')
+    log.info(f'Time downloading the files was: {et.elapsed()}')
+
+
+def upload_SP_files():
+    # This function upload all the files on const.PATH_CLOUD into the CZO ShaPoint data folder.
+    # Create the elapsed time object
+    et = systemTools.ElapsedTime()
+    # set connection to SharePoint
+    sp = office365_api.SharePoint(log=log)
+    # Get the current time and the time from 7 days ago
+    last_mod_time = datetime.now() - timedelta(days=7)
+    # Get the list of files in the local folder
+    files = [f for f in consts.PATH_CLOUD.rglob('*') if
+             f.is_file() and datetime.fromtimestamp(f.stat().st_mtime) >= last_mod_time]
+    idx = 1
+    for item in files:
+        log.live(f'File: {item.name}, ({idx}/{len(files)})')
+        upload_file = item.relative_to(consts.PATH_CLOUD)
+        # Upload the files to the SharePoint folder
+        if sp.upload_large_file(local_file_path=item, target_file_url=upload_file):
+            if not check_log_file(item):
+                log.info(f'Local copy of {item.name} was uploaded to SharePoint and local file moved to temporal backup')
+                LibDataTransfer.moveAfileWOOW(item, consts.PATH_TEMP_BACKUP.joinpath(upload_file), log)
+            else:
+                log.info(f'Local copy of {item.name} was uploaded to SharePoint')
+        else:
+            log.warn(f'Not possible to upload {item.name} to SharePoint. The file left for next try')
+        idx += 1
+    # Log the elapsed time
+    log.info(f'Uploaded {len(files)} in {et.elapsed()}.')
+
+
 def run():
     """Main function
     it will read folder const.PATH_HARVESTED_DATA and each file will be processed
@@ -92,6 +157,8 @@ def run():
         gDF = LibDataTransfer.fuseDataFrame(l0.df, freq=l0.frequency, group=l0.st_fq, log=log)
         # created a list based on the storage frequency. If days, for ts, then each day is a key.
         i_gDF = list(gDF.keys())
+        # download the L1 files needed from SharePoint for the current file
+        download_SP_files(l0.pathL1)
         for idx_pL1 in range(len(l0.pathL1)):  # for each stored or cloud file (L1 file) related to the current file, L0 file
             fL1 = l0.pathL1[idx_pL1]
             start2 = time.time()  # keep track of the time for each L1 file
@@ -189,7 +256,8 @@ def run():
             LibDataTransfer.moveAfileWOOW(l0.pathTOB, l0.pathL0TOB)
         log.live(f'Total time for file L0: {file.name} {file.name}: {elapsedTime1.elapsed()}')
         log.live(f'<<<<<<<<<<<<<<<<< {file.name} <<<<<<<<<<<<<<<<<<<')
-
+    # move the files to the SharePoint
+    upload_SP_files()
 
 
 if __name__ == '__main__':
@@ -197,6 +265,3 @@ if __name__ == '__main__':
     arguments(sys.argv[1:])
     run()
     log.info(f'Total time for all the files: {elapsedTime.elapsed()}')
-
-# TODO: check other sites. 2. RedLake
-#
