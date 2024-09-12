@@ -369,7 +369,7 @@ def getFreq4DF(df):
         return None
 
 
-def getPathFilenameExtension(pathFileName, resolve=False):  # TODO: proposed method
+def getPathFilenameExtension(pathFileName, resolve=False):
     """ Return the dir name, file name, extension """
     pathFileName = Path(pathFileName)
     if resolve:
@@ -417,11 +417,11 @@ def listOfFilesWithExtensionInPath(path, extension):
     return listOfFilesWithExtension(path, getOnlyFilesNames(path), extension)
 
 
-def getListOfFiles(path, match):
+def getListOfFiles(path, match): # TODO: Check
     """ Return the list of files that match.
     e.g.: getListOfFiles('CR3000_flux_20130909_17*.*')
     return: ['CR3000_flux_20130903_170000.dat', 'CR3000_flux_20130903_173000.dat'] """
-    #TODO:
+    # TODO:
     # dirPath = Path(path)
     # return [file for file in dirPath.glob(pattern) if file.is_file()]
     actualDir = os.getcwd()
