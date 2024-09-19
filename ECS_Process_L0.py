@@ -1,24 +1,21 @@
 # -------------------------------------------------------------------------------
-# Name:        EddyCovarinceSystem Process for L0 Data
+# Name:        CampbellSci Process for L0 and L1 Data
 # Purpose:     take the files from loggernet, change de file name with the
 #              current timestamp. Then the releated stored tables are updated
 #              with the current file.
 #
-# Version:     0.1
+# Version:     1.0
 #
 # Author:      Gesuri Ramirez
 #
 # Created:     06/13/2023
-# Copyright:   (c) Gesuri 2023
+# Copyright:   (c) Gesuri 2024
 # Licence:     Apache 2.0
 # -------------------------------------------------------------------------------
 
 # info about CS tables:
 # https://help.campbellsci.com/GRANITE9-10/Content/shared/Details/Data/About_Data_Tables.htm?TocPath=Working%20with%20data%7C_____4
 
-## TODO: create a new function to check const.PATH_TEMP_BACKUP and erased it after const.TIME_REMOVE_TEMP_BACKUP
-## TODO: on download_SP_files, check if the file already exists in local folder. if exists, check the size and and date
-##       if the file in the cloud is newer, download it. If the file in the local folder is newer, upload it.
 
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -86,10 +83,20 @@ def check_log_file(path):
     return False
 
 
+def check_temp_backup():
+    """Check the temporal backup folder and remove files older than const.TIME_REMOVE_TEMP_BACKUP"""
+    for file in consts.PATH_TEMP_BACKUP.rglob('*'):
+        if file.is_file() and datetime.fromtimestamp(file.stat().st_mtime) < datetime.now() - consts.TIME_REMOVE_TEMP_BACKUP:
+            log.info(f'Removing file {file.name} from temporal backup')
+            file.unlink()
+
+
 def download_SP_files(pathfiles):
     # download the file from SharePoint.
     # pathfile is the path to local file that must fit with the path in SharePoint
-    # return True if the file was downloaded, False if not
+    # check if the file already exists in local folder. if exists, check the size and date
+    #       if the file in local is newer or has more data, change the name of the file in cloud.
+    #       else, download the file from SharePoint
     et = systemTools.ElapsedTime()
     sp = office365_api.SharePoint(log=log)
     if not isinstance(pathfiles, list):
@@ -98,6 +105,21 @@ def download_SP_files(pathfiles):
         pf = Path(file)
         file_name = pf.name
         folder_name = pf.relative_to(consts.PATH_CLOUD).parent
+        if pf.exists():
+            log.info(f'File {pf.name} already exists in local folder')
+            remote_file_properties = sp.get_file_properties(file_name, folder_name)
+            flag = False
+            if pf.stat().st_size > remote_file_properties['file_size']:
+                log.warn(f'The local file {pf.name} looks to have more information than the file in SharePoint')
+                flag = True
+            if datetime.fromtimestamp(pf.stat().st_mtime) > remote_file_properties['time_last_modified']:
+                log.warn(f'File {pf.name} in local folder is newer than the file in SharePoint')
+                flag = True
+            if flag:
+                new_name = f'{file_name}_{Log.getStrTime()}'
+                log.warn(f'The file in SharePoint will be renamed to {new_name}')
+                sp.rename_file(f'{folder_name}/{file_name}', f'{folder_name}/{new_name}')
+                time.sleep(5)
         if not pf.parent.exists():
             pf.parent.mkdir(parents=True)
         # download the file from SharePoint
@@ -264,4 +286,5 @@ if __name__ == '__main__':
     elapsedTime = systemTools.ElapsedTime()
     arguments(sys.argv[1:])
     run()
+    check_temp_backup()
     log.info(f'Total time for all the files: {elapsedTime.elapsed()}')
