@@ -102,14 +102,6 @@ def TOB2TOA(pathIn, pathOut=None, tempDir=False, log=None, programPath=consts.TO
     else:  # not pathOut and not tempDir so the pathOut will be the same as pathIn with different extension
         pathOut = pathIn.parent.joinpath(pathIn.stem + extOut)
 
-    # if pathOut is None and tempDir is False:
-    #     pathOut = pathIn.parent.joinpath(pathIn.stem + extOut)
-    # elif pathOut:
-    #     pathOut = Path(pathOut)
-    #     if pathOut.suffix == '':
-    #         pathOut = Path(pathOut).joinpath(pathIn.stem + extOut)
-    # else:
-    #     pathOut = Path(tempfile.mkdtemp()).joinpath(pathIn.stem + extOut)
 
     if checkTOAfile(pathIn, log):
         msg = f'The file {pathIn.name} is an ASCII'  # (TOA) file then just renaming it.'
@@ -117,34 +109,14 @@ def TOB2TOA(pathIn, pathOut=None, tempDir=False, log=None, programPath=consts.TO
             log.warn(msg)
         else:
             print(msg)
-        #try:
-        #    shutil.move(pathIn, pathOut)
-        #except (IOError, os.error):
-        #    msg = f'[ConvertCambellsciData::TOB2TOA]: Error moving TOA file, {pathIn} to {pathOut}'
-        #    if _log:
-        #        log.error(msg)
-        #    else:
-        #        print(msg)
-        #    return False
+
         return Path(pathIn)  # pathOut)
-    #if tempDir is None:
-    #    tempDir = tempfile.mkdtemp()
-    #tempFile = Path(tempDir).joinpath(pathOut.name)
-    #cmd = [str(tob32), '-a', '-r', '-o', os.path.join(tempDir, ''), str(pathIn)]
+
     cmd = [str(tob32), '-a', '-r', '-o', str(pathOut), str(pathIn)]
     data, error = systemTools.executeCommand(cmd)
-    # print("********")
-    # print("cmd:", cmd)
-    # print("data:", data)
-    # print("error:", error)
-    # print('Final destination file:', os.path.join(pathOut,fileIn + '.TOA'))
-    # print('Creaded file:', os.path.join(tempDir, fileIn + '.TOA'))
-    # print("tempDir:", tempDir)
-    # print("fileIn:", fileIn)
-    # if 'CR3000_flux_2015_11_03_12_13_27' in fileIn:
-    #    pdb.set_trace()
+
     counterWait = 0
-    #while not os.path.isfile(os.path.join(tempDir, fileIn + '.TOA')):
+
     while not pathOut.is_file():
         # print '\t No ready the file yet'
         if counterWait >= (0.1 * 10 * 5):
@@ -156,22 +128,7 @@ def TOB2TOA(pathIn, pathOut=None, tempDir=False, log=None, programPath=consts.TO
             break
         counterWait += 1
         time.sleep(0.1)
-    # try:
-    #     # fOut = os.path.join(pathOut,fileIn + '.TOA') #OK
-    #     # counter = 0
-    #     # while(os.path.exists(fOut)):
-    #     #    fOut = os.path.join(pathOut, fileIn + '_' +str(counter) + '.TOA')
-    #     #    counter = counter + 1
-    #     # shutil.move(os.path.join(tempDir, fileIn + '.TOA'), fOut)
-    #     #shutil.move(os.path.join(tempDir, fileIn + '.TOA'), pathOut)
-    #     shutil.move(tempFile, pathOut)
-    # except (IOError, os.error):
-    #     msg = f'[ConvertCambellsciData::TOB2TOA]: Error: No file converted or problem in temporal directory: {pathIn}'
-    #     if _log:
-    #         log.error(msg)
-    #     else:
-    #         print(msg)
-    #     return False
+
     return Path(pathOut)
 
 
@@ -208,12 +165,6 @@ def TOB2TOA_fileList(fileList, pathOutput, log=None):
         percentage = (float(counter) / float(total)) * 100.0
         print(counter, 'of', total, '@', ('%0.3f%%' % percentage), fName)
         item = item.rstrip('\n')
-        # print item
-        # if counter >= 9142:
-        # print "item:", item
-        # print "pathOutput", pathOutput
-        # print "tempDir", tempDir
-        #    pdb.set_trace()
         if TOB2TOA(item, pathOutput, tempDir=tempDir) is False:
             err += 1
     if type(fileList) is str:

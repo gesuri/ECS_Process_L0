@@ -1,3 +1,120 @@
+"""
+### Module: `config`
+
+#### Purpose:
+The `config` module provides metadata and configurations for processing multiple sites, dataloggers, and tables used in
+environmental monitoring and data logging. The configuration primarily helps to manage Campbell Scientific (CS)
+dataloggers and tables, defining their attributes such as file names, folders, frequencies, classes (dynamic or static),
+ and other parameters. This metadata is used in conjunction with the data processing pipeline to organize, analyze, and
+ store time-series data.
+
+---
+
+### Metadata Constants:
+
+- **`DEFAULT (str)`**:
+  - **Purpose**: Used as a key in the table definitions to indicate default configurations.
+  - **Default**: `'default'`.
+
+- **`L1_FOLDER_NAME (str)`**:
+  - **Purpose**: Key to specify the folder name for storing Level 1 (processed) data.
+  - **Example**: `'l1FolderName'`.
+
+- **`L1_FILE_NAME (str)`**:
+  - **Purpose**: Key to specify the file name for Level 1 data files.
+  - **Example**: `'l1FileName'`.
+
+- **`L1_NAME_POSTFIX (str)`**:
+  - **Purpose**: Key to specify a postfix (e.g., year) for file names to differentiate by time.
+  - **Example**: `'l1NamePostfix'`.
+
+- **`FREQUENCY (str)`**:
+  - **Purpose**: Key to define the frequency of the table, either a dynamic (time-series) or static frequency.
+  - **Example**: `'frequency'`.
+
+- **`L1_FILE_FREQUENCY (str)`**:
+  - **Purpose**: Key to define how frequently Level 1 files are stored (e.g., daily, yearly).
+  - **Example**: `'l1FileFrequency'`.
+
+- **`CLASS (str)`**:
+  - **Purpose**: Key to classify the table as `static` or `dynamic`.
+  - **Example**: `'class'`.
+
+- **`SAVE_L0_TOB (bool)`**:
+  - **Purpose**: Key to specify whether Level 0 TOB files (raw binary) should be saved.
+  - **Example**: `'saveL0TOB'`.
+
+- **`ARCHIVE_AFTER (timedelta)`**:
+  - **Purpose**: Key to define when a file should be archived after a specific time period.
+  - **Example**: `'archiveAfter'`.
+
+- **`NAN_VALUE (int)`**:
+  - **Purpose**: Key to define the value used for missing data (NaN).
+  - **Example**: `'nanValue'`.
+
+- **`INDEX_MAP_FUNC (function)`**:
+  - **Purpose**: Key to define a function used to map and format the index (typically timestamps).
+  - **Example**: `'indexMapFunc'`.
+
+- **`COLS_2_PLOT (list)`**:
+  - **Purpose**: Key to specify which columns should be plotted for visualization.
+  - **Example**: `'cols2Plot'`.
+
+- **`TIME_2_PLOT (DateOffset)`**:
+  - **Purpose**: Key to define a time offset for plotting, such as `30 days`.
+  - **Example**: `'time2Plot'`.
+
+- **`PROJECT (str)`**:
+  - **Purpose**: Key to associate the table with a specific project.
+  - **Example**: `'project'`.
+
+- **`RESAMPLE (str or bool)`**:
+  - **Purpose**: Key to define if the table data should be resampled to a specific frequency (e.g., '1T' for 1 minute).
+  - **Example**: `'resampled'`.
+
+---
+
+### Tables Configuration:
+
+The `TABLES` dictionary contains metadata for each table that is being processed. Each table can inherit default values
+or define its own custom configuration.
+
+---
+
+#### **Default Table Configuration (`DEFAULT`)**:
+- **`L1_FOLDER_NAME`**: Default folder name for storing Level 1 data.
+- **`L1_FILE_NAME`**: Default file name for Level 1 data.
+- **`L1_NAME_POSTFIX`**: Postfix for filenames (default is yearly format).
+- **`FREQUENCY`**: Default frequency (e.g., `30 minutes`).
+- **`L1_FILE_FREQUENCY`**: How frequently Level 1 files are stored (default: yearly).
+- **`CLASS`**: Specifies if the table is static or dynamic.
+- **`SAVE_L0_TOB`**: Whether to save raw binary data for Level 0 files.
+- **`ARCHIVE_AFTER`**: Archive files after a default period (e.g., 2 years).
+- **`NAN_VALUE`**: Default NaN value (`-9999`).
+- **`INDEX_MAP_FUNC`**: Function for formatting timestamps (default: None).
+- **`COLS_2_PLOT`**: List of columns to plot (default: empty).
+- **`TIME_2_PLOT`**: Default plotting period (e.g., 30 days).
+- **`RESAMPLE`**: Default resampling setting (default: False).
+
+---
+
+### **`getTable(table)`**:
+- **Purpose**: Returns the configuration for a given table. If the table is not defined, it uses the default
+configuration.
+- **Parameters**:
+  - `table (str)`: The name of the table to retrieve.
+- **Returns**: A dictionary of the table configuration.
+
+---
+
+### Usage:
+This module defines and organizes the metadata needed for processing data from multiple dataloggers and tables in
+environmental monitoring. It helps the main system by providing the necessary configuration (e.g., folder names, file
+frequencies, and plotting preferences) for each table, allowing for easy integration and data handling in the
+processing pipeline.
+
+"""
+
 import consts
 import LibDataTransfer
 from pandas import DateOffset

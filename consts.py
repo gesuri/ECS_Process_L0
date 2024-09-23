@@ -19,6 +19,199 @@
 # info about CS tables:
 # https://help.campbellsci.com/GRANITE9-10/Content/shared/Details/Data/About_Data_Tables.htm?TocPath=Working%20with%20data%7C_____4
 
+"""
+### Module: `consts`
+
+#### Purpose:
+This module provides a collection of constants and configurations used across scripts in the Eddy Covariance System
+(ECS) data processing pipeline. It defines paths, file structure versions, time formats, logging configurations, and
+file handling rules for different stages (L0, L1) of data processing. The constants are primarily used to handle data
+from Campbell Scientific dataloggers.
+
+---
+
+### General Constants:
+
+- **`dev (bool)`**:
+  - **Purpose**: Flag to indicate if the system is in development (`True`) or production (`False`).
+  - **Example**: Set to `True` for development environments, `False` for production.
+
+---
+
+### Site Constants:
+
+- **`_SITES_ (list)`**:
+  - **Purpose**: List of site names that are processed by the system.
+  - **Example**: `['Pecan5R', 'RedLake', 'Kimberly', 'Bahada']`.
+
+- **`SITE_4_FILE (dict)`**:
+  - **Purpose**: Maps the site names used in filenames to the actual site names.
+  - **Example**: `{'Pecan5R': 'Pecan5R', 'RedLake': 'RedLake', ...}`.
+
+- **`ECS_NAME (str)`**:
+  - **Purpose**: The folder name for Eddy Covariance system files.
+  - **Default**: `'Tower'`.
+
+---
+
+### Paths:
+
+- **`PATH_HARVESTED_DATA (Path)`**:
+  - **Purpose**: Path where LoggerNet saves collected data.
+  - **Example**: `'C:/temp/Collected/'` (development) or `'E:/temp/Collected/'` (production).
+
+- **`PATH_TEMP_BACKUP (Path)`**:
+  - **Purpose**: Temporary backup folder for data before moving to permanent storage.
+  - **Example**: `'C:/LatestData/'` (development) or `'E:/LatestData/'` (production).
+
+- **`PATH_CLOUD (Path)`**:
+  - **Purpose**: Path to permanent storage (SharePoint).
+  - **Example**: `'C:/Data/'` (development) or `'E:/Data/'` (production).
+
+- **`PATH_GENERAL_LOGS (Path)`**:
+  - **Purpose**: Directory where general logs are stored.
+  - **Default**: `PATH_CLOUD.joinpath('Logs')`.
+
+- **`PATH_CHECK_FILES (Path)`**:
+  - **Purpose**: Directory where files that need review are stored (unprocessed or problematic files).
+  - **Default**: `PATH_HARVESTED_DATA.joinpath('CheckFiles')`.
+
+- **`PATH_FILES_NOT_UPLOADED (Path)`**:
+  - **Purpose**: Directory where files that failed to upload are stored.
+  - **Default**: `PATH_HARVESTED_DATA.joinpath('NotUploaded')`.
+
+---
+
+### File Structure and Metadata:
+
+- **`CS_FILE_METADATA (dict)`**:
+  - **Purpose**: Mapping of metadata fields for Campbell Scientific files (e.g., file type, station name).
+  - **Example**: `{'type': 0, 'stationName': 1, 'model': 2, ...}`.
+
+- **`CS_FILE_HEADER_LINE (dict)`**:
+  - **Purpose**: Metadata fields for file headers (e.g., hardware info, fields, units).
+  - **Example**: `{'HARDWARE': 0, 'FIELDS': 1, ...}`.
+
+- **`CS_FILE_NAME_SITE (int)`**:
+  - **Purpose**: The position of the site name in the file name.
+  - **Default**: `0`.
+
+- **`CS_FILE_NAME_DATALOGGER (int)`**:
+  - **Purpose**: The position of the datalogger name in the file name.
+  - **Default**: `1`.
+
+- **`CS_FILE_NAME_TABLE (int)`**:
+  - **Purpose**: The position of the table name in the file name.
+  - **Default**: `2`.
+
+- **`FILE_STRUCTURE_VERSION (int)`**:
+  - **Purpose**: Specifies the file structure version (1 for old, 2 for new).
+  - **Default**: `2`.
+
+---
+
+### Data Levels:
+
+- **`L0 (str)`**:
+  - **Purpose**: Constant for Level 0 data (raw data).
+  - **Default**: `'L0'`.
+
+- **`L1 (str)`**:
+  - **Purpose**: Constant for Level 1 data (processed data).
+  - **Default**: `'L1'`.
+
+---
+
+### Time and Date Formats:
+
+- **`SECONDS_TZ (int)`**:
+  - **Purpose**: Time zone offset in seconds (Mountain Time Zone).
+  - **Default**: `25200` (7 hours).
+
+- **Timestamp Formats**:
+  - `TIMESTAMP_FORMAT`: `'Ymd_HMS'` (for file names).
+  - `TIMESTAMP_FORMAT_FILES`: `'Ymd_HMS'` (for file storage).
+  - `TIMESTAMP_FORMAT_CS_LINE_HF`: `'Y-m-d H:M:S.f'` (high-frequency data format).
+  - `TIMESTAMP_FORMAT_CS_LINE`: `'Y-m-d H:M:S'` (standard timestamp).
+  - `TIMESTAMP_FORMAT_DAILY`: `'Ymd_0000'` (daily format).
+  - `TIMESTAMP_FORMAT_YEARLY`: `'Y'` (yearly format).
+
+---
+
+### Frequency Constants:
+
+- **`FREQ_YEARLY`**: `'Y'` (pandas yearly frequency).
+- **`FREQ_DAILY`**: `'D'` (pandas daily frequency).
+- **`FREQ_30MIN`**: 30-minute interval as a `Timedelta`.
+- **`FREQ_2HZ`**: 0.5-second interval as a `Timedelta` (2 Hz frequency).
+- **`FREQ_1MIN`**: 1-minute interval as a `Timedelta`.
+- **`FREQ_10HZ`**: 0.1-second interval as a `Timedelta` (10 Hz frequency).
+
+---
+
+### File Extensions and Status:
+
+- **File Extensions**:
+  - `ST_NAME_TOA`: `'bin'` (folder for TOA files).
+  - `ST_NAME_TOB`: `'RAWbin'` (folder for TOB files).
+  - `ST_EXT_TOA`: `'TOA'` (extension for TOA files).
+  - `ST_EXT_TOB`: `'DAT'` (extension for TOB files).
+
+- **File Status Constants**:
+  - `STATUS_FILE_NOT_EXIST`: File does not exist.
+  - `STATUS_FILE_OK`: File is okay.
+  - `STATUS_FILE_EMPTY`: File is empty.
+  - `STATUS_FILE_NOT_HEADER`: File is missing a header.
+  - `STATUS_FILE_MISSMATCH_COLUMNS`: File has mismatched columns.
+  - `STATUS_FILE_EXCEPTION_ERROR`: File has an exception error.
+  - `STATUS_FILE_UNKNOWN_FORMAT`: File has an unknown format.
+  - `STATUS_FILE_NOT_READABLE`: File is not readable.
+
+---
+
+### General Data Handling:
+
+- **`CS_DATA_DICT (dict)`**:
+  - **Purpose**: Template dictionary to store metadata and file paths for Campbell Scientific files.
+  - **Fields**: Includes fields like `extension`, `site`, `fileNameDT`, `headers`, `path`, `statusFile`, etc.
+
+- **`MIN_PCT_DATA (float)`**:
+  - **Purpose**: Minimum percentage of data required to consider the data valid.
+  - **Default**: `0.1` (10%).
+
+- **`TIME_REMOVE_TEMP_BACKUP (timedelta)`**:
+  - **Purpose**: Time limit after which files are removed from the temporary backup.
+  - **Default**: `7 days`.
+
+- **`FLAG (int)`**:
+  - **Purpose**: The flag value used for missing data.
+  - **Default**: `-9999`.
+
+- **`CLASS_STATIC`**: Indicates a static table.
+- **`CLASS_DYNAMIC`**: Indicates a dynamic table.
+
+- **`DEFAULT_L1_NAME_POSTFIX (str)`**:
+  - **Purpose**: Default name postfix for L1 files (yearly format).
+  - **Default**: `TIMESTAMP_FORMAT_YEARLY`.
+
+- **`DEFAULT_FREQUENCY`**: Default table frequency (set to `FREQ_30MIN`).
+- **`DEFAULT_SAVE_L0_TOB (bool)`**: Whether to save L0 TOB files.
+- **`DEFAULT_ARCHIVE_AFTER (timedelta)`**:
+  - **Purpose**: Default time after which files are archived.
+  - **Default**: `2 years`.
+
+---
+
+### Usage:
+The constants provided in this module are used throughout various data processing scripts to maintain consistency in
+file handling, time formatting, logging, and managing the structure of the Eddy Covariance System. The file provides
+flexibility for both development and production environments.
+
+"""
+
+
+
+
 import datetime
 from pathlib import Path
 import pandas as pd

@@ -62,6 +62,202 @@
 #   'checkAndFixPath(path_)': Checks and fixes the format of a path by appending a backslash if it is missing.
 #   'joinPath(path1, path2)': Joins two paths together.
 
+"""
+Documentation for `LibDataTransfer` module, which contains functions related to file and folder management, data
+formatting, file renaming, MD5 hashing, and working with CSV and ZIP files.
+
+### Module: `LibDataTransfer`
+
+#### Purpose:
+The purpose of this module is to provide various utility functions for file management, data transfer, file renaming,
+and data formatting. The functions can handle file operations like copying, moving, renaming, zipping, unzipping, MD5
+hashing, and also deal with time-series data formatting and handling.
+
+#### Import Statements:
+- `os`, `time`, `shutil`, `zipfile`, `hashlib`: Standard libraries for file and directory operations, zipping, and MD5
+hashing.
+- `pandas`, `numpy`: Used for handling time-series data and dataframes.
+- `re`: Used for regular expression operations.
+- `Log`: Custom logging library (assumed to be provided in the project).
+- `systemTools`, `ConverterCambellsciData`, `consts`: Custom modules (assumed to be provided).
+
+---
+
+### Function Descriptions:
+
+---
+
+#### **`getStrippedHeaderLine(line)`**
+- **Purpose**: Parses and strips the headers in a CSV file by splitting the input line on commas while considering
+quoted strings.
+- **Parameters**:
+  - `line (str)`: A line from a CSV file.
+- **Returns**: A list of cleaned header fields.
+
+---
+
+#### **`getHeaderFLlineFile(pathFileName, log=None)`**
+- **Purpose**: Extracts file metadata, including headers and the first and last timestamps, from a file.
+- **Parameters**:
+  - `pathFileName (str)`: The path to the file.
+  - `log (Log)`: Optional logging object.
+- **Returns**: A dictionary with headers, first and last timestamps, and column counts.
+
+---
+
+#### **`checkAndConvertFile(pathFile, rename=True, log=None)`**
+- **Purpose**: Checks the file type (TOA or TOB) and converts TOB files to TOA if necessary.
+- **Parameters**:
+  - `pathFile (Path)`: Path to the file to be processed.
+  - `rename (bool)`: Whether to rename the file by appending the creation timestamp.
+  - `log (Log)`: Optional logging object.
+- **Returns**: A dictionary containing file paths for TOA, TOB, and error status.
+
+---
+
+#### **`getDTfromLine(line)`**
+- **Purpose**: Extracts the timestamp from a line of data in a CSV file.
+- **Parameters**:
+  - `line (str)`: A line from the file, containing a timestamp.
+- **Returns**: A `datetime` object parsed from the line.
+
+---
+
+#### **`getCSFromLine(line)`**
+- **Purpose**: Extracts metadata from a data line based on predefined constants for column indices.
+- **Parameters**:
+  - `line (str)`: A line from the file.
+- **Returns**: A dictionary with metadata information.
+
+---
+
+#### **`fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last', maxNumYears=1)`**
+- **Purpose**: Combines two dataframes (`df1` and `df2`), removes duplicates, resamples them based on frequency, and
+groups data (daily or yearly).
+- **Parameters**:
+  - `df1 (pd.DataFrame)`: First dataframe.
+  - `df2 (pd.DataFrame)`: Second dataframe (optional).
+  - `freq (str)`: Resampling frequency.
+  - `group (str)`: Whether to group by day or year.
+  - `log (Log)`: Optional logging object.
+  - `keep (str)`: How to handle duplicate rows (`'last'` or `'first'`).
+  - `maxNumYears (int)`: Maximum number of years to retain in the dataframe.
+- **Returns**: A dictionary of grouped dataframes.
+
+---
+
+#### **`datetime_format_HF(dt)`**
+- **Purpose**: Returns a datetime string formatted for high-frequency data (10Hz) in Campbell Scientific logger files.
+- **Parameters**:
+  - `dt (datetime)`: Datetime object.
+- **Returns**: Formatted string with the date and time, including fractional seconds if necessary.
+
+---
+
+#### **`datetime_format(dt, numDec=1)`**
+- **Purpose**: Formats a datetime object to a string with a customizable number of decimal places for the seconds.
+- **Parameters**:
+  - `dt (datetime)`: Datetime object.
+  - `numDec (int)`: Number of decimal places.
+- **Returns**: Formatted string with the date and time.
+
+---
+
+#### **`boolean_format(value)`**
+- **Purpose**: Formats a boolean value as 'TRUE' or 'FALSE' for the Campbell Scientific logger.
+- **Parameters**:
+  - `value (bool)`: Boolean value.
+- **Returns**: A string 'TRUE' or 'FALSE'.
+
+---
+
+#### **`float_format(value, numDec=3)`**
+- **Purpose**: Formats a float value to the specified number of decimal places.
+- **Parameters**:
+  - `value (float)`: Float value.
+  - `numDec (int)`: Number of decimal places.
+- **Returns**: Formatted float value as a string.
+
+---
+
+#### **`correct_format(df)`**
+- **Purpose**: Applies the correct format to all columns in a dataframe, adjusting for boolean and float values.
+- **Parameters**:
+  - `df (pd.DataFrame)`: DataFrame to format.
+
+---
+
+#### **`writeDF2csv(pathFile, dataframe, header=None, indexMapFunc=None, overwrite=False, log=None)`**
+- **Purpose**: Writes a dataframe to a CSV file with a multi-line header and handles optional file renaming and
+overwriting.
+- **Parameters**:
+  - `pathFile (Path)`: Path to the output CSV file.
+  - `dataframe (pd.DataFrame)`: DataFrame to write.
+  - `header (list)`: List of header lines.
+  - `indexMapFunc (callable)`: Function to format the index.
+  - `overwrite (bool)`: Whether to overwrite the existing file.
+  - `log (Log)`: Optional logging object.
+
+---
+
+#### **`getFragmentation4DF(df)`**
+- **Purpose**: Analyzes a dataframe and calculates the fragmentation (time gaps) between rows.
+- **Parameters**:
+  - `df (pd.DataFrame)`: DataFrame to analyze.
+- **Returns**: A series of time differences between consecutive rows.
+
+---
+
+#### **`md5_for_file(path, block_size=256 * 128, hr=False)`**
+- **Purpose**: Calculates the MD5 hash of a file.
+- **Parameters**:
+  - `path (str)`: File path.
+  - `block_size (int)`: Block size for reading the file.
+  - `hr (bool)`: Whether to return the hash in hexadecimal form.
+- **Returns**: The MD5 hash of the file.
+
+---
+
+#### **`zipFiles(localFolder)`**
+- **Purpose**: Zips all files in a given folder.
+- **Parameters**:
+  - `localFolder (Path)`: Folder containing files to zip.
+- **Returns**: Name of the created ZIP file.
+
+---
+
+#### **`unzipAfile(fileItem, outputFolder, listFiles=False, onlyExt=[])`**
+- **Purpose**: Extracts files from a ZIP archive, optionally filtering by extension and listing files.
+- **Parameters**:
+  - `fileItem (Path)`: The ZIP file to extract.
+  - `outputFolder (Path)`: The output directory.
+  - `listFiles (bool)`: Whether to return a list of extracted files.
+  - `onlyExt (list)`: List of file extensions to filter.
+- **Returns**: A list of extracted files or `True`.
+
+---
+
+#### **`moveAfileWOOW(src, dst, log=None)`**
+- **Purpose**: Moves a file without overwriting any existing files. If the file already exists at the destination,
+appends a timestamp to the filename.
+- **Parameters**:
+  - `src (Path)`: Source file path.
+  - `dst (Path)`: Destination file path.
+  - `log (Log)`: Optional logging object.
+
+---
+
+#### **`renameAFileWithDate(pathFile, log=None)`**
+- **Purpose**: Renames a file by appending its creation timestamp to the filename.
+- **Parameters**:
+  - `pathFile (Path)`: The file to rename.
+  - `log (Log)`: Optional logging object.
+- **Returns**: The new file path.
+
+"""
+
+
+
 import glob
 import hashlib
 import os
