@@ -43,6 +43,8 @@ import LibDataTransfer
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'MSSP_file_driver'))
 import office365_api
 
+_PATH_DATA_2_PROCESS_ = consts.PATH_HARVESTED_DATA
+
 # Initialize the general log file
 log = Log.Log(path=consts.PATH_GENERAL_LOGS.joinpath('ECS_Process_L0.log'))
 
@@ -66,17 +68,33 @@ def getReadyFiles(dirList):
     return newDirList
 
 
+def check_folders():
+    """
+    Check if the required folders exist and create them if they do not.
+    """
+    for folder in [consts.PATH_CLOUD, consts.PATH_HARVESTED_DATA, consts.PATH_GENERAL_LOGS, consts.PATH_CHECK_FILES,
+                   consts.PATH_TEMP_BACKUP, consts.PATH_TEMPSHARE]:
+        if not systemTools.createDir(folder):
+            log.error(f'Error creating folder: {folder}')
+
 def cmd_help():
     """
     Display help message for the script usage and default paths.
     """
     print('Help:')
+    print('   ECS_Process_L0.py')
+    print('   This script process the data from the CampbellSci data loggers. The process consist in:')
     print("      Default values:")
     print('         Storage Folder:           ', consts.PATH_CLOUD)
     print('         LoggerNet working Folder: ', consts.PATH_HARVESTED_DATA)
     print('         Logs Folder:              ', consts.PATH_GENERAL_LOGS)
     print('         Check | error Folder:     ', consts.PATH_CHECK_FILES)
-    print('   ECS_Process_L0.py')
+    print('         Temporal Backup Folder:   ', consts.PATH_TEMP_BACKUP)
+    print('         Time to remove files:     ', consts.TIME_REMOVE_TEMP_BACKUP)
+    print('         After process path:       ', consts.PATH_TEMPSHARE)
+    print('   If required to process extra data, you need to run the script without any parameters.')
+    print('   If the script will be run atomatically by the system, the parameter -a must be added.')
+    print('   ')
     print('   To use default folders use no parameters')
     print('   To change folders, modify consts.py file only if you really know what are you doing!')
 
@@ -88,15 +106,18 @@ def arguments(argv):
     Args:
         argv (list): List of command line arguments.
     """
+    global _PATH_DATA_2_PROCESS_
     try:
         opts, args = getopt.getopt(argv, "h", ["help"])
     except getopt.GetoptError:
         cmd_help()
         sys.exit(2)
     if not opts:
-        pass
+        _PATH_DATA_2_PROCESS_ = consts.PATH_TEMPSHARE
     for opt, arg in opts:
-        if opt == '-h':
+        if opt == '-a':
+            _PATH_DATA_2_PROCESS_ = consts.PATH_HARVESTED_DATA
+        if opt in ('-h', '--help'):
             cmd_help()
             sys.exit()
         else:
@@ -208,7 +229,7 @@ def run():
     Main function to process L0 files, update tables, and manage file transfers.
     """
     # get the list of files in the folder
-    files = [x for x in consts.PATH_HARVESTED_DATA.iterdir() if x.is_file()]
+    files = [x for x in _PATH_DATA_2_PROCESS_.iterdir() if x.is_file()]
 
     # rename the files
     files = getReadyFiles(files)
@@ -346,6 +367,7 @@ def run():
 
 if __name__ == '__main__':
     elapsedTime = systemTools.ElapsedTime()
+    check_folders()
     arguments(sys.argv[1:])
     run()
     check_temp_backup()

@@ -233,11 +233,13 @@ if not dev:  # production version
     PATH_HARVESTED_DATA = Path(r'E:/temp/Collected/')  # Path(r'E:/LoggerNet/')  # Where LoggerNet save the data
     PATH_TEMP_BACKUP = Path(r'E:/LatestData')  # Where the data is moved to temporary backup
     PATH_CLOUD = Path(r'E:/Data/')  # Where the data is moved to permanent storage
+    PATH_TEMPSHARE = Path(r'E:/TempShare/')  # data stored temporarily, data to be processed
 else:  # development version
     # Paths
     PATH_HARVESTED_DATA = Path(r'C:/temp/Collected/')  # Where LoggerNet save the data
     PATH_TEMP_BACKUP = Path(r'C:/LatestData')  # Where the data is moved to temporary backup
     PATH_CLOUD = Path(r'C:/Data/')  # SharePoint/Data/
+    PATH_TEMPSHARE = Path(r'C:/TempShare/')  # data stored temporarily, data to be processed
 
 PATH_GENERAL_LOGS = PATH_CLOUD.joinpath('Logs')  # Where the logs are saved
 # Where the files that are not processed for some reason are saved
