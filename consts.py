@@ -230,7 +230,7 @@ ECS_NAME = 'Tower'  # Name of the Eddy Covariance system folder
 
 if not dev:  # production version
     # Paths
-    PATH_HARVESTED_DATA = Path(r'E:/temp/Collected/')  # Path(r'E:/LoggerNet/')  # Where LoggerNet save the data
+    PATH_HARVESTED_DATA = Path(r'E:/LoggerNet/')  # Path(r'E:/LoggerNet/')  # Where LoggerNet save the data
     PATH_TEMP_BACKUP = Path(r'E:/LatestData')  # Where the data is moved to temporary backup
     PATH_CLOUD = Path(r'E:/Data/')  # Where the data is moved to permanent storage
     PATH_TEMPSHARE = Path(r'E:/TempShare/')  # data stored temporarily, data to be processed
