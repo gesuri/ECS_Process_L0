@@ -142,6 +142,16 @@ For example, to modify the configuration for a table, you can update the `config
 
 The system supports integration with SharePoint via the `office365_api` module. Ensure you have proper authentication credentials in place for uploading and downloading files from SharePoint.
 The 'office365_api' can be found on 
+
+
+### Manually Running `ECS_Process_L0.py`
+
+If you need to run the script manually, you do not need to pass any arguments; the script will execute using the default configuration.
+
+When running the program via Task Scheduler, you must pass the `-a` argument.
+
+When the script is run manually, it uses the same constants, but instead of the regular harvest folder (`consts.PATH_HARVESTED_DATA`), it will use the folder defined in `consts.PATH_TEMPSHARE` (typically `E:/TempShare`).
+
 ---
 
 ## Contributing
