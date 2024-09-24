@@ -229,7 +229,7 @@ def run():
     Main function to process L0 files, update tables, and manage file transfers.
     """
     # get the list of files in the folder
-    files = [x for x in _PATH_DATA_2_PROCESS_.iterdir() if x.is_file()]
+    files = [x for x in _PATH_DATA_2_PROCESS_.iterdir() if x.is_file() and x.name != 'README.txt']
 
     # rename the files
     files = getReadyFiles(files)
