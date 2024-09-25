@@ -108,7 +108,7 @@ def arguments(argv):
     """
     global _PATH_DATA_2_PROCESS_
     try:
-        opts, args = getopt.getopt(argv, "h", ["help"])
+        opts, args = getopt.getopt(argv, "ah", ["help"])
     except getopt.GetoptError:
         cmd_help()
         sys.exit(2)
@@ -117,7 +117,7 @@ def arguments(argv):
     for opt, arg in opts:
         if opt == '-a':
             _PATH_DATA_2_PROCESS_ = consts.PATH_HARVESTED_DATA
-        if opt in ('-h', '--help'):
+        elif opt in ('-h', '--help'):
             cmd_help()
             sys.exit()
         else:

@@ -210,8 +210,8 @@ def td_format(td_object):
             period_value , seconds = divmod(seconds, period_seconds)
             has_s = 's' if period_value >= 1 else ''
             strings.append("%s %s%s" % (period_value, period_name, has_s))
-        else:
-            return '0.00 seconds'
+        #else:
+        #    return '0.00 seconds'
     return ", ".join(strings)
 
 
