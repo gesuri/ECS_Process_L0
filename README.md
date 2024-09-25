@@ -1,7 +1,7 @@
 
 # Eddy Covariance System Data Processing (ECS_Process_L0)
 
-This repository contains a suite of Python modules designed for processing, managing, and analyzing data collected from Campbell Scientific dataloggers for Eddy Covariance systems. It is primarily focused on handling large datasets, automating metadata extraction, data cleaning, file management, and log management.
+This repository contains a suite of Python modules designed for processing, managing, and analyzing data collected from Campbell Scientific dataloggers using LoggerNet for Eddy Covariance systems. It is primarily focused on handling large datasets, automating metadata extraction, data cleaning, file management, and log management.
 
 ## Table of Contents
 
