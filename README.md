@@ -50,7 +50,7 @@ This project is aimed at automating the processing of environmental data, specif
 
 ## File Structure
 In the local server will be a temporal folder where the data will be stored before being uploaded to the cloud. The data will be stored in the following structure:
-![File Structure](./docs/CZO_FileStructure-general.png)
+<img src="https://github.com/gesuri/ECS_Process_L0/blob/main/Docs/CZO_FileStructure-General.png" alt="File Structure" width="50%"/>
 For more information about the file structure, please refer to the SharePoint/data/Metadata/File_Structure.pdf.
 
 ## Code Overview
