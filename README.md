@@ -17,6 +17,10 @@ This repository contains a suite of Python modules designed for processing, mana
     - [Configuration (`config`)](#configuration-config)
 - [Installation](#installation)
 - [Usage](#usage)
+  - [Running the Script Automatically](#running-the-script-automatically)
+  - [Manually Running `ECS_Process_L0.py`](#manually-running-ecs_process_l0py)
+  - [Configuration](#configuration)
+  - [SharePoint Integration](#sharepoint-integration)
 - [Contributing](#contributing)
 - [License](#license)
 - [Explanation of specific codes](#explanation-of-specific-codes)
@@ -125,10 +129,11 @@ The command to be executed is:
 ```bash
 python ECS_Process_L0.py -a
 ```
-The `-a` argument is used to indicate that the script is being run automatically.
+### Manually Running `ECS_Process_L0.py`
 
+If you need to run the script manually, you do not need to pass any arguments; the script will execute using the default configuration.
+When the script is run manually, it uses the same constants, but instead of the regular harvest folder (`consts.PATH_HARVESTED_DATA`), it will use the folder defined in `consts.PATH_TEMPSHARE` (typically `E:/TempShare`).
 
-### Running Manually the Main Script
 It is needed to put the files on the folder `E:\TempShare` following the below indication.
 
 #### README for TempShare Folder on Server DataHub-MM01
@@ -194,13 +199,6 @@ The system supports integration with SharePoint via the `office365_api` module. 
 The 'office365_api' can be found on 
 
 
-### Manually Running `ECS_Process_L0.py`
-
-If you need to run the script manually, you do not need to pass any arguments; the script will execute using the default configuration.
-
-When running the program via Task Scheduler, you must pass the `-a` argument.
-
-When the script is run manually, it uses the same constants, but instead of the regular harvest folder (`consts.PATH_HARVESTED_DATA`), it will use the folder defined in `consts.PATH_TEMPSHARE` (typically `E:/TempShare`).
 
 ---
 
