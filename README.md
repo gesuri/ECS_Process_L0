@@ -118,21 +118,71 @@ The `config` module provides metadata configurations for each data table:
 ---
 
 ## Usage
-
-The scrip can run atomatically using a `Task Scheduler` to process data files at regular intervals.
+This will process all the files in the configured `LoggerNet` directory, extract metadata, clean the data, and organize the processed files into the appropriate directories. Logs will be created to track the progress and any errors that occur.
+### Running the Script Automatically
+The scrip can run automatically using MS Windows `Task Scheduler` to process data files at regular intervals. The XML file for the Task Scheduler can be found in the Docs folders in this repository, `.Docs/ECS_Processing_L0.xml`.
+The command to be executed is:
+```bash
+python ECS_Process_L0.py -a
+```
+The `-a` argument is used to indicate that the script is being run automatically.
 
 
 ### Running Manually the Main Script
+It is needed to put the files on the folder `E:\TempShare` following the below indication.
 
-To run the main script, navigate to the root folder and use the following command:
+#### README for TempShare Folder on Server DataHub-MM01
 
-```bash
-python ECS_Process_L0.py
+The `TempShare` folder located on `E:\` on the server `DataHub-MM01` is 
+used for storing temporary files from dataloggers that process CZO sites. This 
+folder serves as a backup when data is not synced automatically. To ensure 
+proper organization and accessibility, please follow the guidelines provided 
+below for uploading and managing files.
+
+#### File Naming Convention
+Files should be named using the following format:
+```
+SITE_DATALOGGER-PROJECT_TABLE
+```
+- `SITE`: Identifier for the site.
+- `DATALOGGER-PROJECT`: Datalogger name or the project name or both. If both 
+	are used, separate them with a hyphen (`-`).
+- `TABLE`: Name of the table.
+
+#### Example:
+```
+Pecan5R_CR6-Above_Time_Series.dat
 ```
 
-This will process all the files in the configured `LoggerNet` directory, extract metadata, clean the data, and organize the processed files into the appropriate directories. Logs will be created to track the progress and any errors that occur.
+### File Formats
+Ensure that all files are in one of the following formats:
+- Campbell Scientific TOA (ASCII)
+- Campbell Scientific TOB1 (binary type 1)
+
+### File Renaming
+To rename multiple files efficiently, you can use the `PowerRename` tool 
+available on `DataHub_MM01`. Select the files, right-click, and choose the 
+option `Rename with PowerRename`.
+
+### Data Retention and Backup
+After the new data has been updated or processed, including instances where 
+the data could not be reprocessed, the corresponding folder in `TempShare` will 
+be removed. Therefore, it is strongly recommended to maintain backups of all 
+files before they are uploaded to `TempShare`.
+
+---
+After the files are in the `TempShare` folder, it is needed to pause or disable the task on the Task Scheduler. To do that, open the Task Scheduler, find the task `ECS_Process_L0` and right-click on it and select `Disable`. Remember to enable the task after the files are processed. 
+Then, the script can be run manually by opening a `Windows PowerShell` on the server and using the following command:
+```bash
+python.exe E:\Projects\ECS_Process_L0\ECS_Process_L0.py
+```
+Finally, remember to enable the task on the Task Scheduler by right-clicking on the task and selecting `Enable`.
 
 ### Configuration
+
+Following these guidelines will ensure that the data is organized systematically 
+and can be easily accessed and reprocessed when necessary. Thank you for your 
+cooperation.
 
 The `config` and `consts` modules are used to configure site-specific and table-specific settings. These configurations include file paths, data frequencies, resampling options, and plotting preferences.
 
