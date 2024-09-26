@@ -50,7 +50,7 @@ This project is aimed at automating the processing of environmental data, specif
 
 ## File Structure
 In the local server will be a temporal folder where the data will be stored before being uploaded to the cloud. The data will be stored in the following structure:
-<img src="https://github.com/gesuri/ECS_Process_L0/blob/main/Docs/CZO_FileStructure-General.png" alt="File Structure" width="50%"/>
+![File Structure](./Docs/CZO_FileStructure-General.png)
 For more information about the file structure, please refer to the SharePoint/data/Metadata/File_Structure.pdf.
 
 ## Code Overview
@@ -58,14 +58,14 @@ For more information about the file structure, please refer to the SharePoint/da
 ### Main Processing Script
 
 The main script is responsible for orchestrating the overall data processing pipeline:
-![General Overview](./docs/ECT_process-CurrentSystem_2024.png)
+![General Overview](./Docs/ECT_process-CurrentSystem_2024.png)
 - **Process Steps**:
   1. Renaming files with timestamps.
   2. Extracting metadata from filenames and headers.
   3. Checking for and handling L1 (processed) files.
   4. Uploading and downloading files to/from SharePoint.
   5. Backing up and archiving old data files.
-![ECS_Process_L0](./docs/ECS_Process_L0.png)
+![ECS_Process_L0](./Docs/ECS_Process_L0.png)
 ### Libraries
 
 #### **LibDataTransfer**
@@ -77,7 +77,7 @@ The `LibDataTransfer` module handles file and folder operations:
 - **CSV Handling**: Reading and writing Pandas DataFrames to CSV, with proper formatting for Campbell Scientific data.
 
 #### **InfoFile**
-![InfoFile class](./docs/infofile.png)
+![InfoFile class](./Docs/infofile.png)
 The `InfoFile` class manages individual data files, extracting metadata, converting file formats, and loading data into Pandas DataFrames:
 - **Metadata Handling**: Extracts datalogger type, program signature, station name, and more from the file headers.
 - **Data Handling**: Loads data into Pandas DataFrames and can resample or clean the data as needed.
@@ -773,7 +773,7 @@ processing pipeline.
 **Name**: ResampleData
 
 **Purpose**: The `ResampleData` class is designed to resample time-series data from CSV files to a lower frequency. It reads CSV files, resamples the data according to a specified frequency and method, and saves the processed data to new CSV files.
-![ResampleData](./docs/ResampleData.png)
+![ResampleData](./Docs/ResampleData.png)
 ---
 
 ### Key Features
