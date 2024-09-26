@@ -77,7 +77,7 @@ The `LibDataTransfer` module handles file and folder operations:
 - **CSV Handling**: Reading and writing Pandas DataFrames to CSV, with proper formatting for Campbell Scientific data.
 
 #### **InfoFile**
-![InfoFile class](./Docs/infofile.png)
+![InfoFile class](./Docs/InfoFile.png)
 The `InfoFile` class manages individual data files, extracting metadata, converting file formats, and loading data into Pandas DataFrames:
 - **Metadata Handling**: Extracts datalogger type, program signature, station name, and more from the file headers.
 - **Data Handling**: Loads data into Pandas DataFrames and can resample or clean the data as needed.
