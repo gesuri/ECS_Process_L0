@@ -77,6 +77,7 @@ def check_folders():
         if not systemTools.createDir(folder):
             log.error(f'Error creating folder: {folder}')
 
+
 def cmd_help():
     """
     Display help message for the script usage and default paths.
@@ -170,6 +171,9 @@ def download_SP_files(pathfiles):
         if pf.exists():
             log.info(f'File {pf.name} already exists in local folder')
             remote_file_properties = sp.get_file_properties(file_name, folder_name)
+            if not remote_file_properties:
+                log.debug(f"The file {file_name} doesn't exist on SharePoint, skiping this file.")
+                continue
             flag = False
             # Compare size and modification date of the local file with the file in SharePoint
             if pf.stat().st_size > remote_file_properties['file_size']:
@@ -229,7 +233,7 @@ def run():
     Main function to process L0 files, update tables, and manage file transfers.
     """
     # get the list of files in the folder
-    files = [x for x in _PATH_DATA_2_PROCESS_.iterdir() if x.is_file() and x.name != 'README.txt']
+    files = [x for x in _PATH_DATA_2_PROCESS_.iterdir() if x.is_file() and x.name != 'README.txt' and x.suffix !='.backup']
 
     # rename the files
     files = getReadyFiles(files)
@@ -243,6 +247,9 @@ def run():
         # create the object that read the CS file (file Level 0) from fL0 get the related stored files and load them
         # using InfoFile
         l0 = InfoFile.InfoFile(file)
+        if not l0.ok():
+            log.error(f'The file {l0} is skiping because has problems.\n{l0.statusFile}')
+            continue
 
         # the l0 dataframe is cleaned (if the frequency is correct and not an static table) and organized by the
         # storage frequency

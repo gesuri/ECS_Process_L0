@@ -339,6 +339,9 @@ def checkAndConvertFile(pathFile, rename=True, log=None):
     else:
         toReturn['path'] = pathFile
     if isinstance(toReturn['path'], Path):
+        if toReturn['path'].stat().st_size == 0:
+            toReturn['err'] = consts.STATUS_FILE_EMPTY
+            return toReturn
         try:
             with open(str(toReturn['path']), 'rb') as f:
                 firstLine = f.readline().decode('ascii')

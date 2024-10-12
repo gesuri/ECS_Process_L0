@@ -279,7 +279,11 @@ class InfoFile:
         If the file is not found or has critical errors, the method terminates early and logs the issue.
         """
         # Check flags if the file exists and is readable
-        if self.statusFile[consts.STATUS_FILE_NOT_EXIST] or self.pathTOA is None:
+        if (self.statusFile[consts.STATUS_FILE_NOT_EXIST] or self.statusFile[consts.STATUS_FILE_EMPTY] or
+            self.statusFile[consts.STATUS_FILE_NOT_HEADER] or self.statusFile[consts.STATUS_FILE_EXCEPTION_ERROR] or
+            self.statusFile[consts.STATUS_FILE_UNKNOWN_FORMAT] or self.statusFile[consts.STATUS_FILE_NOT_READABLE] or
+            self.pathTOA is None):
+            self.log.error(f'The file: {self.pathFile} has problems to be read.\n{self.statusFile}')
             return
 
         # try:
@@ -701,13 +705,13 @@ class InfoFile:
         self.log.live(f'Terminating {self.pathFile.stem} with status those flags: {msg[:-2]}')
 
     def __str__(self):
-        return f'{self.pathFile} ({self.pathTOA.name})'
+        return self.__repr__()
 
     def __repr__(self):
         if self.pathFile is None:
             return 'No file'
         elif self.pathTOA is None:
-            return f'{self.pathFile} (Not available L1 file)'
+            return f'{self.pathFile} (Not available TOA file)'
         else:
             return f'{self.pathFile} ({self.pathTOA.name})'
 
