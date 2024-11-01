@@ -147,9 +147,19 @@ def check_temp_backup():
     Check the temporal backup folder and remove files older than the defined time in consts.TIME_REMOVE_TEMP_BACKUP.
     """
     for file in consts.PATH_TEMP_BACKUP.rglob('*'):
-        if file.is_file() and datetime.fromtimestamp(file.stat().st_mtime) < datetime.now() - consts.TIME_REMOVE_TEMP_BACKUP:
+        if file.is_file() and datetime.fromtimestamp(
+                file.stat().st_mtime) < datetime.now() - consts.TIME_REMOVE_TEMP_BACKUP:
             log.info(f'Removing file {file.name} from temporal backup')
-            file.unlink()
+            try:
+                file.unlink()
+            except PermissionError as e:
+                log.error(f"PermissionError, need to be removed manually. Error: {e}")
+            except FileNotFoundError as e:
+                log.error(f"FileNotFoundError: {e}")
+            except IsADirectoryError as e:
+                log.error(f"IsADirectoryError: {e}")
+            except Exception as e:
+                log.error(f"Unexpected error: {e}")
 
 
 def download_SP_files(pathfiles):
@@ -217,7 +227,8 @@ def upload_SP_files():
         # Upload the files to the SharePoint folder
         if sp.upload_large_file(local_file_path=item, target_file_url=upload_file):
             if not check_log_file(item):
-                log.info(f'Local copy of {item.name} was uploaded to SharePoint and local file moved to temporal backup')
+                log.info(
+                    f'Local copy of {item.name} was uploaded to SharePoint and local file moved to temporal backup')
                 LibDataTransfer.moveAfileWOOW(item, consts.PATH_TEMP_BACKUP.joinpath(upload_file), log)
             else:
                 log.info(f'Local copy of {item.name} was uploaded to SharePoint')
@@ -228,12 +239,89 @@ def upload_SP_files():
     log.info(f'Uploaded {len(files)} files in {et.elapsed()}.')
 
 
+def get_file_info(file_path: Path) -> dict:
+    if not file_path.exists() or not file_path.is_file():
+        return None
+    file_info = {
+        "file_name": file_path.name,
+        "file_size": file_path.stat().st_size,
+        "time_created": time.ctime(file_path.stat().st_ctime),
+        "time_last_modified": time.ctime(file_path.stat().st_mtime)
+    }
+
+    return file_info
+
+
+def uploadAfile(sp, item, upload_file):
+    #    Upload the files to the SharePoint and then erase local copy
+    if sp.upload_large_file(local_file_path=item, target_file_url=upload_file):
+        if not check_log_file(item):
+            print(f'Local copy of {item.name} was uploaded to SharePoint and local file is removed')
+            # LibDataTransfer.moveAfileWOOW(item, consts.PATH_TEMP_BACKUP.joinpath(upload_file), log)
+            item.unlink()
+        else:
+            log.info(f'Local copy of {item.name} was uploaded to SharePoint')
+    else:
+        print(f'****Unable to upload {item.name} to SharePoint. File will be left for next attempt')
+
+
+def check_and_upload_SP_files_v2():
+    """
+    Upload files from the local folder to SharePoint
+    """
+    # Create the elapsed time object
+    et = systemTools.ElapsedTime()
+    # set connection to SharePoint
+    sp = office365_api.SharePoint(log=log)
+    # Get the current time and the time from 7 days ago
+    last_mod_time = datetime.now() - timedelta(days=500)
+    # Get the list of files in the local folder
+    files = [f for f in consts.PATH_CLOUD.rglob('*') if
+             f.is_file() and datetime.fromtimestamp(f.stat().st_mtime) >= last_mod_time]
+    idx = 1
+    for item in files:
+        log.live(f'File: {item.name}, ({idx}/{len(files)})')
+        upload_file = item.relative_to(consts.PATH_CLOUD)
+        spFileProp = sp.get_file_properties(upload_file.name, upload_file.parent)
+        lcFileProp = get_file_info(item)
+        if not spFileProp:
+            print(f'This file {item.name} is not in SharePoint, going to upload')
+            # return [spFileProp, lcFileProp]
+            uploadAfile(sp, item, upload_file)
+            continue
+        if spFileProp['file_size'] != lcFileProp['file_size']:
+            print(
+                f"{item.name}, SP:{systemTools.sizeof_fmt(spFileProp['file_size'])} != local:{systemTools.sizeof_fmt(lcFileProp['file_size'])}")
+            if spFileProp['file_size'] > lcFileProp['file_size']:
+                Log.pPurple(f'{item.name} in SP is bigger than local copy so, local copy will be erased.')
+                item.unlink()
+            else:
+                Log.pCyan(f'Local copy of {item.name} is bigger so it will be upload.')
+                uploadAfile(sp, item, upload_file)
+        else:
+            Log.pYellow(f'Erasing file {item.name} because already exist and same size of SP copy.')
+            item.unlink()
+        # Upload the files to the SharePoint folder
+        #        if sp.upload_large_file(local_file_path=item, target_file_url=upload_file):
+        #            if not check_log_file(item):
+        #                log.info(f'Local copy of {item.name} was uploaded to SharePoint and local file moved to temporal backup')
+        #                LibDataTransfer.moveAfileWOOW(item, consts.PATH_TEMP_BACKUP.joinpath(upload_file), log)
+        #            else:
+        #                log.info(f'Local copy of {item.name} was uploaded to SharePoint')
+        #        else:
+        #            log.warn(f'Unable to upload {item.name} to SharePoint. File will be left for next attempt')
+        idx += 1
+    # Log the elapsed time
+    log.info(f'Uploaded {len(files)} files in {et.elapsed()}.')
+
+
 def run():
     """
     Main function to process L0 files, update tables, and manage file transfers.
     """
     # get the list of files in the folder
-    files = [x for x in _PATH_DATA_2_PROCESS_.iterdir() if x.is_file() and x.name != 'README.txt' and x.suffix !='.backup']
+    files = [x for x in _PATH_DATA_2_PROCESS_.iterdir() if
+             x.is_file() and x.name != 'README.txt' and x.suffix != '.backup']
 
     # rename the files
     files = getReadyFiles(files)
@@ -260,7 +348,8 @@ def run():
 
         # download the L1 files needed from SharePoint for the current file
         download_SP_files(l0.pathL1)
-        for idx_pL1 in range(len(l0.pathL1)):  # for each stored or cloud file (L1 file) related to the current file, L0 file
+        for idx_pL1 in range(
+                len(l0.pathL1)):  # for each stored or cloud file (L1 file) related to the current file, L0 file
             fL1 = l0.pathL1[idx_pL1]
             start2 = time.time()  # keep track of the time for each L1 file
             createNewFile = False  # flag to create a new file
