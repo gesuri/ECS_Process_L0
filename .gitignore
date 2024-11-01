@@ -174,3 +174,4 @@ data/
 *.xml
 .idea/ECS_Process_L0.iml
 .idea/misc.xml
+/.idea
