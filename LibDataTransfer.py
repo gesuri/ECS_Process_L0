@@ -393,6 +393,14 @@ def getCSFromLine(line):
     return info
 
 
+def custom_keep(group):
+    if len(group) <= 1:
+        return group
+    group['score'] = group.notna().sum(axis=1).values
+    group.sort_values(by='score', ascending=False, inplace=True)
+    return group.drop(columns='score').head(1)
+
+
 def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last', maxNumYears=1):
     """ Return a list of dataframes with the data of df1 and df2 sorted and without duplicated index and with the freq
      Also, it will group the data by the group. If group is 'D' it will group by day or 'Y' by year """
@@ -424,39 +432,43 @@ def fuseDataFrame(df1, df2=None, freq=None, group=None, log=None, keep='last', m
     else:
         df_1 = df1
         df_2 = df2
+
     # concat the dataframes
     if df2 is not None:
         df_con = pd.concat([df_1, df_2])
     else:
         df_con = df_1
-    # if dynamic:
-    df_cle = df_con[~df_con.index.duplicated(keep=keep)]  # remove the duplicated from index
-    df_cle = df_cle.sort_index()  # sort the index
+    df_con = df_con.sort_index()
+    if df_con.index.duplicated().any():  # if there are duplicated data, it will select what is the best to keep
+        Log.pYellow('Going to remove duplicated data')
+        df_con = df_con.groupby(df_con.index).apply(custom_keep)
+        df_con.index = df_con.index.droplevel(0)
+
     # check if the data is not old or if there are incorrect dates
     c_year = time.localtime().tm_year
-    numBefore = len(df_cle)
-    df_cle = df_cle[(df_cle.index.year >= c_year-maxNumYears) & (df_cle.index.year <= c_year+maxNumYears)]
-    numAfter = len(df_cle)
+    numBefore = len(df_con)
+    df_con = df_con[(df_con.index.year >= c_year-maxNumYears) & (df_con.index.year <= c_year+maxNumYears)]
+    numAfter = len(df_con)
     if numBefore != numAfter:
         msg = f'<LibDataTransfer> The data was filtered from {numBefore} to {numAfter} rows remaining {numBefore-numAfter}.'
         if log:
             log.warn(msg)
         else:
-            print
+            print(msg)
     if dynamic:
         #freq = getFreq4DF(df1)
-        df_cle = df_cle.asfreq(freq)  # set the frequency, this missing data will be filled with nan
+        df_con = df_con.asfreq(freq)  # set the frequency, this missing data will be filled with nan
     #else:
     #    df_cle = df_con
     if group in ['D', 'Y']:  # return a dict of dataframes
-        for name, gr in df_cle.groupby(pd.Grouper(freq=group)):
+        for name, gr in df_con.groupby(pd.Grouper(freq=group)):
             if group == 'D':
                 n = name.strftime(consts.TIMESTAMP_FORMAT_DAILY)
             elif group == 'Y':
                 n = name.strftime(consts.TIMESTAMP_FORMAT_YEARLY)
             df_cycles[n] = gr
     else:  # return just the dataframe
-        df_cycles[group] = df_cle
+        df_cycles[group] = df_con
         return df_cycles
     msg = f'<LibDataTransfer> Fused dataframe in {time.time() - start_time:.2f} seconds'
     if log:
