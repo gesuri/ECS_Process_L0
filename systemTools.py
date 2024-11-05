@@ -196,7 +196,7 @@ def td_format(td_object):
         '1 hour, 1 minute, 1 second'
     """
     seconds = int(td_object.total_seconds())
-    milliseconds = td_object.microseconds
+    milliseconds = td_object.microseconds // 1000
     periods = [
         ('year',        60*60*24*365),
         ('month',       60*60*24*30),
