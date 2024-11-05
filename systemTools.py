@@ -196,6 +196,7 @@ def td_format(td_object):
         '1 hour, 1 minute, 1 second'
     """
     seconds = int(td_object.total_seconds())
+    milliseconds = td_object.microseconds
     periods = [
         ('year',        60*60*24*365),
         ('month',       60*60*24*30),
@@ -206,12 +207,16 @@ def td_format(td_object):
     ]
     strings=[]
     for period_name, period_seconds in periods:
-        if seconds > period_seconds:
+        if seconds >= period_seconds:
             period_value , seconds = divmod(seconds, period_seconds)
             has_s = 's' if period_value >= 1 else ''
-            strings.append("%s %s%s" % (period_value, period_name, has_s))
-        #else:
-        #    return '0.00 seconds'
+            strings.append(f'{period_value} {period_name}{has_s}')
+    #if len(strings) == 0:
+    #    return '0.00 seconds'
+    if seconds > 0:
+        strings.append(f"{seconds} second{'s' if seconds > 1 else ''}")
+    if milliseconds > 0:
+        strings.append(f"{milliseconds} millisecond{'s' if milliseconds > 1 else ''}")
     return ", ".join(strings)
 
 
@@ -264,7 +269,8 @@ class ElapsedTime:
             self.endTime = self._current_()
         passedTime = self.endTime - self.startTime
         if self.returnStr:
-            return td_format(passedTime)
+            a = td_format(passedTime)
+            return a
         else:
             return passedTime
 
@@ -283,4 +289,5 @@ class ElapsedTime:
             str or timedelta: The elapsed time in a formatted string or as a `timedelta` object.
         """
         self.endTime = self._current_()
-        return self.elapsed()
+        a = self.elapsed()
+        return a
