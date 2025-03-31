@@ -32,6 +32,7 @@ import time
 import getopt
 import sys
 import os
+import shutil
 
 import systemTools
 import consts
@@ -153,7 +154,10 @@ def check_temp_backup():
             try:
                 file.unlink()
             except PermissionError as e:
-                log.error(f"PermissionError, need to be removed manually. Error: {e}")
+                try:
+                    shutil.rmtree(file, ignore_errors=True)
+                except Exception as e:
+                    log.error(f"********PermissionError, need to be removed manually. Error: {e}")
             except FileNotFoundError as e:
                 log.error(f"FileNotFoundError: {e}")
             except IsADirectoryError as e:
@@ -347,7 +351,7 @@ def run():
         i_gDF = list(gDF.keys())
 
         # download the L1 files needed from SharePoint for the current file
-        download_SP_files(l0.pathL1)
+        ###download_SP_files(l0.pathL1)
         for idx_pL1 in range(
                 len(l0.pathL1)):  # for each stored or cloud file (L1 file) related to the current file, L0 file
             fL1 = l0.pathL1[idx_pL1]
@@ -458,7 +462,7 @@ def run():
         log.live(f'Total time for file L0: {file.name} {file.name}: {elapsedTime1.elapsed()}')
         log.live(f'<<<<<<<<<<<<<<<<< {file.name} <<<<<<<<<<<<<<<<<<<')
     # move the files to the SharePoint
-    upload_SP_files()
+    ###upload_SP_files()
 
 
 if __name__ == '__main__':
@@ -466,5 +470,5 @@ if __name__ == '__main__':
     check_folders()
     arguments(sys.argv[1:])
     run()
-    check_temp_backup()
+    # check_temp_backup()
     log.info(f'Total time for all the files: {elapsedTime.elapsed()}')
