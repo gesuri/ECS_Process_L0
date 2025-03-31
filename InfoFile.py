@@ -69,8 +69,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 import time
-
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
 
 import consts
 import config
@@ -214,8 +214,9 @@ class InfoFile:
     staticTable = False  # flag to indicate if the table is static or not
     metaTable = None  # metadata of the table from consts
     resample = False  # if string, then it is the frequency of the resample
+    plot = False
 
-    def __init__(self, pathFileName, cleanDataFrame=True, rename=True):
+    def __init__(self, pathFileName, cleanDataFrame=True, rename=True, plot=False):
         """
         Initializes the InfoFile class with the given file path and optional parameters.
 
@@ -564,6 +565,16 @@ class InfoFile:
         self.log.live(f'DataFrame generated in {end_time - start_time:.2f} seconds from a '
                       f'{systemTools.sizeof_fmt(self.f_size)} file')
 
+    def checkAndPlotData(self):
+        if self.plot:
+            flag = True
+        else:
+            flag = False
+            self.plot = True
+        self.checkData()
+        if not flag:
+            self.plot = False
+
     def checkData(self):
         """
         Checks for missing data by grouping the data per day and calculating the percentage of missing records.
@@ -577,11 +588,56 @@ class InfoFile:
         if self._cleaned_ is False:
             self.cleanDataFrame()
         totalRecordsPerDay = pd.Timedelta(days=1) / self.frequency * (self.numberColumns - 1)
+        totalFullRecordsPerDay = pd.Timedelta(days=1) / self.frequency
+        data = []
         for name, group in self.df.groupby(pd.Grouper(freq='D')):
             missing = group.isna().sum().sum()
+            fullMissing = group["RECORD"].isna().sum()
             if missing > (self.numberColumns - 1):
                 self.log.info(
-                    f'On {name.strftime("%Y-%m-%d")} were {missing} missing records ({missing / totalRecordsPerDay * 100:.2f}%)')
+                    f'On {name.strftime("%Y-%m-%d")} were missing {missing} single records ('
+                    f'{missing / totalRecordsPerDay * 100:.2f}%) in {fullMissing} full records '
+                    f'({fullMissing / totalFullRecordsPerDay * 100:.2f}%).')
+                if self.plot:
+                    data.append({
+                        'Date': name,
+                        'Missing Single Records': missing,
+                        'Missing Single Records (%)': missing / totalRecordsPerDay * 100,
+                        'Missing Full Records': fullMissing,
+                        'Missing Full Records (%)': fullMissing / totalFullRecordsPerDay * 100
+                    })
+        if self.plot:
+            df = pd.DataFrame(data)
+            df = df.set_index('Date')
+            df = df.sort_index()
+            # Determine the full date range
+            start_date = df.index.min()
+            end_date = df.index.max()
+            full_date_range = pd.date_range(start=start_date, end=end_date, freq='D')
+
+            # Reindex the DataFrame with the full date range
+            df_full_range = df.reindex(full_date_range)
+
+            # Plotting the percentages of missing records as bars with full date range
+            plt.figure(figsize=(64, 8))
+            bar_width = 0.35
+            index = np.arange(len(df_full_range.index))
+
+            plt.bar(index, df_full_range['Missing Single Records (%)'].fillna(0), bar_width,
+                    label='Missing Single Records (%)', color='lightcoral')
+            plt.bar(index + bar_width, df_full_range['Missing Full Records (%)'].fillna(0), bar_width,
+                    label='Missing Full Records (%)', color='lightseagreen')
+
+            plt.xlabel("Date")
+            plt.ylabel("Percentage of Missing Records")
+            plt.title(f"Percentage of Missing Records Over Time ({self.pathFile.name})")
+            plt.xticks(index + bar_width / 2, df_full_range.index.strftime('%Y-%m-%d'), rotation=45, ha='right')
+            plt.legend()
+            plt.grid(axis='y')
+            plt.tight_layout()
+            plt.savefig(self.pathFile.parent.joinpath(self.pathFile.stem +'_' +
+                                                      self.f_creationDT.strftime(consts.TIMESTAMP_FORMAT) + '.jpg'))
+            plt.show()
 
     def setFragmentation(self):
         """
