@@ -1,11 +1,11 @@
 # --- GLOBAL CONFIGURATION ---
-$RCLONE_EXE   = "E:\Projects\rclone\1.73.0\rclone.exe.no"
+$RCLONE_EXE   = "E:\Projects\rclone\1.73.0\rclone.exe"
 $BASE_LOCAL   = "E:\Data"
 $REMOTE_NAME  = "mssp_czodata"
 $TIMESTAMP    = Get-Date -Format "yyMMdd-HHmm"
 
 # --- TEST SETTINGS ---
-$DryRun       = $true  
+$DryRun       = $false  
 $DebugLogging = $true  
 
 # --- PARAMETERS ---
