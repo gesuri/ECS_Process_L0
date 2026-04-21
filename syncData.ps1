@@ -107,7 +107,7 @@ foreach ($SiteName in $Sites.Keys) {
             $OldFiles = Get-ChildItem -Path $L1_Root -Recurse -File | Where-Object { $_.LastWriteTime -lt $PurgeDate }
             foreach ($File in $OldFiles) {
                 if ($DryRun) { Write-Host "[SIMULATE] Delete Old File: $($File.FullName) (Modified: $($File.LastWriteTime))" -ForegroundColor DarkRed } 
-                else { if ($DebugLogging) { Write-Host "Deleting $($File.Name)" }; Remove-Item-no $File.FullName -Force }
+                else { if ($DebugLogging) { Write-Host "Deleting $($File.Name)" }; Remove-Item $File.FullName -Force }
             }
         }
     }
