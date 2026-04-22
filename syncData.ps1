@@ -4,6 +4,22 @@ $BASE_LOCAL   = "E:\Data"
 $REMOTE_NAME  = "mssp_czodata"
 $TIMESTAMP    = Get-Date -Format "yyMMdd-HHmm"
 
+# --- LOGGING CONFIGURATION ---
+$LogDir = Join-Path $PSScriptRoot "Logs"
+if (!(Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
+$LogFile = Join-Path $LogDir "SyncLog_$TIMESTAMP.txt"
+
+# --- TIMER INITIALIZATION ---
+$Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+# Helper function to print to screen AND write to file
+function Write-Log {
+    param([string]$Message, [string]$Color = "White")
+    $LogEntry = "[$($TIMESTAMP)] $Message"
+    Write-Host $Message -ForegroundColor $Color
+    $LogEntry | Out-File -FilePath $LogFile -Append
+}
+
 # --- TEST SETTINGS ---
 $DryRun       = $false  
 $DebugLogging = $true  
@@ -13,61 +29,58 @@ $L1_MIN_AGE      = "15m"
 $L1_MOVE_AGE     = "25h"     
 $PURGE_MONTH_AGE = 3        
 
-# --- HELPER FUNCTION ---
-# Converts Hash Tables (Splatting) to a string for Dry-Run visibility
-function Get-ArgumentsString($Table) {
-    $out = @()
-    foreach ($key in $Table.Keys) {
-        if ($Table[$key] -is [bool]) { if ($Table[$key]) { $out += "--$key" } }
-        else { $out += "--$key $($Table[$key])" }
-    }
-    return $out -join " "
-}
-
-# --- THE STABILITY PARAMETERS ---
-$CommonArgs = @{
-    "update"            = $true
-    "retries"           = 10
-    "low-level-retries" = 20
-    "progress"          = $true
-    "checkers"          = 2
-    "transfers"         = 2
-    "tpslimit"          = 4
-    "tpslimit-burst"    = 4
-    
-}
-
 # --- PROJECT STRUCTURE DEFINITION ---
 $Sites = @{
-    "Bahada" = @{ "Projects" = @( @{ Name = "CR3000"; L1Folders = @("EddyCovariance_ts", "EddyCovariance_ts_2", "Flux", "SoilSensor_CS650", "TowerClimate_met") } ) }
+    "Bahada" = @{ 
+	"Projects" = @( 
+	    @{ Name = "CR3000"; L1Folders = @("EddyCovariance_ts", "EddyCovariance_ts_2", "Flux", "SoilSensor_CS650", "TowerClimate_met") } ) }
     "Pecan5R" = @{
         "Projects" = @(
-            @{ Name = "CR6-Above"; L1Folders = @("Time_Series", "Config_Setting_Notes", "Const_Table", "CPIStatus", "Diagnostic", "Flux_AmeriFluxFormat", "Flux_Notes", "System_Operatn_Notes") },
+            @{ Name = "CR6-Above"; 
+	        L1Folders = @(
+		    "Time_Series", "Config_Setting_Notes", "Const_Table", "CPIStatus", 
+		    "Diagnostic", "Flux_AmeriFluxFormat", "Flux_Notes", "System_Operatn_Notes"
+		) 
+	    },
             @{ Name = "CR1000X-AddSen"; L1Folders = @("Additional_Sensors") },
             @{ Name = "CR1000X-Profile"; L1Folders = @("CalAvg", "RawData", "IntAvg", "message_log", "SiteAvg", "TimeInfo") }
         )
     }
-    "RedLake" = @{ "Projects" = @( @{ Name = "CR3000"; L1Folders = @("Biomet", "BiometConstants", "SoilSensor_CS650", "VariableChecks") } ) }
+    "RedLake" = @{ 
+	"Projects" = @( @{ Name = "CR3000"; L1Folders = @("Biomet", "BiometConstants", "SoilSensor_CS650", "VariableChecks") } ) }
 }
 
 # --- ENGINE ---
 
-if ($DryRun) { Write-Host "--- DRY RUN ENABLED: NO ACTIONS WILL BE TAKEN ---" -ForegroundColor Black -BackgroundColor White }
+if ($DryRun) { Write-Log "--- DRY RUN ENABLED: NO ACTIONS WILL BE TAKEN ---" "Yellow" }
+Write-Log "Starting Sync Process. Logging to: $LogFile" "Green"
 
 foreach ($SiteName in $Sites.Keys) {
     foreach ($Proj in $Sites[$SiteName].Projects) {
         $ProjName = $Proj.Name
-        Write-Host "`n[SITE: $SiteName | PROJ: $ProjName]" -ForegroundColor Cyan
+        Write-Log "`n[SITE: $SiteName | PROJ: $ProjName]" "Cyan"
 
         # 1. HANDLE L0 DATA (MOVE)
         $L0_Source = Join-Path $BASE_LOCAL "$SiteName\$ProjName\L0"
         if (Test-Path $L0_Source) {
+            $L0_Args = @(
+	        "move", "$L0_Source", "${REMOTE_NAME}:$SiteName/$ProjName/L0", 
+		"--update", 
+		"--retries", "10", 
+		"--low-level-retries", "20", 
+		"--checkers", "4", 
+		"--transfers", "4", 
+		"--tpslimit", "8", 
+		"--tpslimit-burst", "8"
+	    )
             
             if ($DryRun) { 
-                $fullArgs = "$(Get-ArgumentsString $CommonArgs)"
-                Write-Host "[SIMULATE] L0 Move: $RCLONE_EXE move `"$L0_Source`" `"${REMOTE_NAME}:$SiteName/$ProjName/L0`" $fullArgs" -ForegroundColor Gray 
+                Write-Log "[SIMULATE] L0 Move: $RCLONE_EXE $($L0_Args -join ' ')" "Gray" 
             } 
-            else { & $RCLONE_EXE move "$L0_Source" "${REMOTE_NAME}:$SiteName/$ProjName/L0" @CommonArgs @l0Specific }
+            else { 
+                Write-Log "Executing L0 Move for $ProjName..." "Gray"
+                & $RCLONE_EXE $L0_Args 2>&1 | Out-File -FilePath $LogFile -Append
+            }
         }
 
         # 2. HANDLE L1 & LOGS
@@ -84,18 +97,25 @@ foreach ($SiteName in $Sites.Keys) {
                 $RemoteSubPath = if ($Sub -eq "logs") { "$SiteName/$ProjName/logs" } else { "$SiteName/$ProjName/L1/$Sub" }
                 $BackupDir     = "${REMOTE_NAME}:$RemoteSubPath`_backup"
 
-                $l1Specific = @{
-                    "min-age"               = $Age
-                    "backup-dir"            = $BackupDir
-                    "suffix"                = "_$TIMESTAMP"
-                    "suffix-keep-extension" = $true
-                }
+                $L1_Args = @(
+		    $Action, "$FullLocalPath", "${REMOTE_NAME}:$RemoteSubPath", 
+		    "--update", 
+		    "--retries", "10", 
+		    "--low-level-retries", "20", 
+		    "--checkers", "2", 
+		    "--transfers", "2", 
+		    "--tpslimit", "4", 
+		    "--tpslimit-burst", "4", 
+		    "--min-age", "$Age", 
+		    "--backup-dir", "$BackupDir", 
+		    "--suffix", "_$TIMESTAMP", 
+		    "--suffix-keep-extension")
 
                 if ($DryRun) {
-                    $fullArgs = "$(Get-ArgumentsString $CommonArgs) $(Get-ArgumentsString $l1Specific)"
-                    Write-Host "[SIMULATE] L1 ${Action}: $RCLONE_EXE $Action `"$FullLocalPath`" `"${REMOTE_NAME}:$RemoteSubPath`" $fullArgs" -ForegroundColor Gray
+                    Write-Log "[SIMULATE] L1 ${Action}: $RCLONE_EXE $($L1_Args -join ' ')" "Gray"
                 } else {
-                    & $RCLONE_EXE $Action "$FullLocalPath" "${REMOTE_NAME}:$RemoteSubPath" @CommonArgs @l1Specific
+                    Write-Log "Executing L1 $Action for $Sub..." "Gray"
+                    & $RCLONE_EXE $L1_Args 2>&1 | Out-File -FilePath $LogFile -Append
                 }
             }
         }
@@ -106,9 +126,23 @@ foreach ($SiteName in $Sites.Keys) {
         if (Test-Path $L1_Root) {
             $OldFiles = Get-ChildItem -Path $L1_Root -Recurse -File | Where-Object { $_.LastWriteTime -lt $PurgeDate }
             foreach ($File in $OldFiles) {
-                if ($DryRun) { Write-Host "[SIMULATE] Delete Old File: $($File.FullName) (Modified: $($File.LastWriteTime))" -ForegroundColor DarkRed } 
-                else { if ($DebugLogging) { Write-Host "Deleting $($File.Name)" }; Remove-Item $File.FullName -Force }
+                if ($DryRun) { 
+                    Write-Log "[SIMULATE] Delete Old File: $($File.FullName)" "DarkRed" 
+                } 
+                else { 
+                    Write-Log "PURGE: Deleting $($File.FullName) (Last Modified: $($File.LastWriteTime))" "DarkYellow"
+                    Remove-Item $File.FullName -Force 
+                }
             }
         }
     }
 }
+# --- FINAL REPORT ---
+$Stopwatch.Stop()
+$ElapsedTime = $Stopwatch.Elapsed
+$DurationString = "$($ElapsedTime.Hours)h $($ElapsedTime.Minutes)m $($ElapsedTime.Seconds)s"
+
+Write-Log ("`n" + ("=" * 40)) "Green" 
+Write-Log "TOTAL TIME TAKEN: $DurationString" "Green"
+Write-Log "Process Finished at $(Get-Date)" "Green"
+Write-Log ("=" * 40) "Green"
